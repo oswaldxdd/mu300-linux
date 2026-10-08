@@ -6,7 +6,8 @@ MU300_TEST_SHELLS="busybox sh" python3 -m unittest discover -s tests   # one she
 powershell -File tests\installer.Tests.ps1        # Windows: install.ps1's functions
 ```
 
-Standard library only (`lz4`, the command or `pip install lz4`, for the boot image tests). CI runs them on Ubuntu,
+Python standard library only (`lz4`, the command or `pip install lz4`, for the boot image tests); the runtime PM
+regression also needs a host C compiler and skips explicitly when none is available. CI runs them on Ubuntu,
 macOS and Windows (`.github/workflows/tests.yml`).
 
 | file | what |
@@ -18,6 +19,7 @@ macOS and Windows (`.github/workflows/tests.yml`).
 | `test_vpn.py` | `mu300-vpn`: VLESS URI parsing, JSON, which networks stay out of the tunnel, the sing-box config |
 | `test_update.py` | `mu300-update`: release files per system and kernel, boot image byte helpers, whether a kernel bundle may go onto this device |
 | `test_boot_image.py` | `boot/build-boot-image.py`: the generic ramdisk, the U30 Air's modules and order |
+| `test_sipa_pm.py` | actual SIPA delegate C helper/command handler: positive success, bounded negative retries, failure reply and PM reference lifetime |
 | `installer.Tests.ps1` | `install.ps1`: `T` with every translation, `NormalizeAnswer`, `Gib` |
 
 The device scripts run under dash (Ubuntu's `/bin/sh`), bash and busybox ash (OpenWrt); every shell test runs under

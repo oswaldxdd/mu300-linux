@@ -32,6 +32,28 @@
 #include "sipa_dele_priv.h"
 
 static struct cp_delegator *s_cp_delegator;
+
+/* get_sync() returns positive success too and increments usage_count on errors.
+ * The command runs in conn_thread: sleep between transient failures, never
+ * keep that thread in the vendor driver's unbounded mdelay()/printk loop.
+ */
+static int cp_dele_get_pd(struct device *dev)
+{
+	int ret, attempt;
+
+	for (attempt = 0; attempt < 5; attempt++) {
+		ret = pm_runtime_get_sync(dev);
+		if (ret >= 0)
+			return 0;
+		pm_runtime_put_noidle(dev);
+		if (ret != -EAGAIN && ret != -EBUSY)
+			return ret;
+		if (attempt < 4)
+			msleep(20);
+	}
+	return ret;
+}
+
 static void cp_dele_on_commad(void *priv, u16 flag, u32 data)
 {
 	struct sipa_delegator *delegator = priv;
@@ -41,28 +63,29 @@ static void cp_dele_on_commad(void *priv, u16 flag, u32 data)
 
 	switch (flag) {
 	case SMSG_FLG_DELE_ENABLE:
-		delegator->pd_eb_flag = true;
-check_again:
-		ret = pm_runtime_get_sync(delegator->pdev);
-		if (ret) {
-			pm_runtime_put(delegator->pdev);
-			pr_warn("sipa_dele get pd fail ret = %d\n", ret);
-			mdelay(1);
-			goto check_again;
-		} else {
-			delegator->pd_get_flag = true;
-			sipa_set_enabled(true);
+		/* A repeated ENABLE must not acquire another PM reference. */
+		ret = delegator->pd_get_flag ? 0 : cp_dele_get_pd(delegator->pdev);
+		if (ret < 0) {
+			delegator->pd_eb_flag = false;
+			pr_warn_ratelimited("get pd failed: %d\n", ret);
 			sipa_dele_start_done_work(delegator,
 						  SMSG_FLG_DELE_ENABLE,
-						  SMSG_VAL_DELE_REQ_SUCCESS);
-			pr_info("sipa_dele get pd success ret = %d\n", ret);
+						  SMSG_VAL_DELE_REQ_FAIL);
+			break;
 		}
+		delegator->pd_get_flag = true;
+		delegator->pd_eb_flag = true;
+		sipa_set_enabled(true);
+		sipa_dele_start_done_work(delegator,
+					  SMSG_FLG_DELE_ENABLE,
+					  SMSG_VAL_DELE_REQ_SUCCESS);
 
 		break;
 	case SMSG_FLG_DELE_DISABLE:
 		delegator->pd_eb_flag = false;
 		sipa_set_enabled(false);
-		pm_runtime_put(delegator->pdev);
+		if (delegator->pd_get_flag)
+			pm_runtime_put(delegator->pdev);
 		delegator->pd_get_flag = false;
 		break;
 	default:
@@ -176,11 +199,14 @@ int cp_delegator_init(struct sipa_delegator_create_params *params)
 	s_cp_delegator->delegator.pd_eb_flag = false;
 	s_cp_delegator->delegator.pd_get_flag = false;
 	s_cp_delegator->delegator.smsg_cnt = 0;
+	/* Enable runtime PM before the connection thread can receive ENABLE. */
+	pm_runtime_enable(s_cp_delegator->delegator.pdev);
 	/* MU300: its result used to be ignored, so a PROD_CP it had deleted again went unnoticed */
 	ret = sipa_delegator_start(&s_cp_delegator->delegator);
-	if (ret)
+	if (ret) {
+		pm_runtime_disable(s_cp_delegator->delegator.pdev);
 		return ret;
-	pm_runtime_enable(s_cp_delegator->delegator.pdev);
+	}
 
 	/*
 	 * MU300: the Wi-Fi offload path, which this device does not use (the CONS_WIFI resources stay released): a

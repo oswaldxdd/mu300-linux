@@ -1,0 +1,17 @@
+* text=auto
+*.c text eol=lf
+*.h text eol=lf
+*.inc text eol=lf
+*.sh text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.ps1 text eol=lf
+*.cmd -text
+overlay/** text eol=lf
+*.gz binary
+*.zip binary
+*.exe binary
+*.dll binary
+
+# Keep imported source bytes identical to the firmware source archive.
+* -text

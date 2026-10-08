@@ -1,0 +1,68 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+umask 077
+export PATH=/opt/mu300/bin:/opt/mu300/busybox-bin:/usr/sbin:/usr/bin:/sbin:/bin
+. /opt/mu300/lib/fcc-record.sh || exit 1
+FGU=/sys/bus/platform/devices/64400000.spi:pmic@0:fgu@800
+STORE=/mnt/mu300-disk/.mu300-fcc
+RECORD=$STORE/learned-v1
+CID=/sys/class/block/mmcblk0/device/cid
+log() { logger -t mu300-fcc-record "$*"; }
+status_read() {
+    model= design= gain= seq=
+    local pair
+    for pair in $(cat "$FGU/fcc_status"); do
+        case "$pair" in
+            model_mah=*) model=${pair#*=};;
+            design_mah=*) design=${pair#*=};;
+            gain=*) gain=${pair#*=};;
+            sequence=*) seq=${pair#*=};;
+        esac
+    done
+    fcc_model_valid "$model" "$design" "$gain" && fcc_uint "$seq"
+}
+[ -r "$CID" ] && [ -r "$FGU/fcc_status" ] && [ -w "$FGU/fcc_restore" ] || exit 1
+# Never log the raw eMMC CID. Records belong to this device and stock DTBO.
+identity=$(sha256sum "$CID") || exit 1
+identity=${identity%% *}
+dtbo_device=
+for part in /sys/class/block/mmcblk0p*/uevent; do
+    if grep -qx 'PARTNAME=dtbo_b' "$part"; then
+        [ -z "$dtbo_device" ] || exit 1
+        dtbo_device=${part%/uevent}
+        dtbo_device=/dev/${dtbo_device##*/}
+    fi
+done
+set -f
+[ -b "$dtbo_device" ] || exit 1
+dtbo=$(sha256sum "$dtbo_device") || exit 1
+dtbo=${dtbo%% *}
+fcc_hash "$identity" && fcc_hash "$dtbo" || exit 1
+mountpoint -q /mnt/mu300-disk || { log 'persistent disk unavailable'; exit 1; }
+[ ! -L "$STORE" ] || exit 1
+mkdir -p "$STORE" && chmod 700 "$STORE" || exit 1
+status_read || exit 1
+if [ -e "$RECORD" ] || [ -L "$RECORD" ]; then
+    if restored=$(fcc_record_read "$RECORD" "$identity" "$dtbo" "$design" "$gain"); then
+        if fcc_restore_write "$FGU/fcc_restore" "$restored" "$design" "$gain"; then
+            log "restored learned capacity ${restored}mAh"
+        else
+            log 'kernel rejected early capacity restore'; exit 1
+        fi
+    else
+        log 'capacity record invalid or belongs to another calibration; retained default'
+    fi
+fi
+last_seq=0
+while sleep 10; do
+    status_read || { log 'invalid kernel capacity status'; exit 1; }
+    # Sequence only increments after the kernel has qualified and committed FCC.
+    if [ "$seq" -gt "$last_seq" ]; then
+        if fcc_record_write "$RECORD" "$identity" "$dtbo" "$design" "$gain" "$model"; then
+            last_seq=$seq
+            log "saved learned capacity ${model}mAh sequence=$seq"
+        else
+            log 'capacity record write failed; retrying without changing kernel model'
+        fi
+    fi
+done

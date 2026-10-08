@@ -1,0 +1,12 @@
+#!/bin/sh /etc/rc.common
+START=20
+STOP=89
+USE_PROCD=1
+start_service() {
+    procd_open_instance
+    procd_set_param command /opt/mu300/bin/mu300-fcc-record
+    procd_set_param stdout 1
+    procd_set_param stderr 1
+    # No automatic respawn: restore must occur in the bounded boot window.
+    procd_close_instance
+}

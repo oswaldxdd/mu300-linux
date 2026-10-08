@@ -1,0 +1,3 @@
+#!/bin/sh
+[ "$ACTION" = add ] || exit 0
+/opt/mu300/bin/mu300-lan-usb
