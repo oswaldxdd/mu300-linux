@@ -77,10 +77,11 @@ return view.extend({
 		var host = this.state.role === 'host', hostAuto = this.q('role-auto').checked && this.q('role').value === 'host';
 		this.q('role-auto').disabled = this.q('role').value !== 'host';
 		if (this.q('role').value !== 'host') this.q('role-auto').checked = false;
-		var locked = host || !!this.state.role_auto || hostAuto;
+		var unsupported = this.state.net_supported !== 1;
+		var locked = unsupported || host || !!this.state.role_auto || hostAuto;
 		[ 'net-mode', 'net-scope', 'net-auto', 'net-apply' ].forEach(function(id) { this.q(id).disabled = locked; }, this);
 		if (locked) this.q('net-auto').checked = false;
-		this.q('net-note').textContent = locked ? _('USB network mode is unavailable in host mode; host auto-start also disables USB network auto-start.') : _('NCM is the default. Windows does not natively support ECM; RNDIS changes enumeration. With Enable selected protocol off, only your choice is saved. Next reboot only applies once, then returns to NCM.');
+		this.q('net-note').textContent = unsupported ? _('USB protocol switching is not supported by this firmware boot image') : locked ? _('USB network mode is unavailable in host mode; host auto-start also disables USB network auto-start.') : _('NCM is the default. Windows does not natively support ECM; RNDIS changes enumeration. With Enable selected protocol off, only your choice is saved. Next reboot only applies once, then returns to NCM.');
 		this.q('refresh').disabled = !host;
 	},
 	wire: function() {

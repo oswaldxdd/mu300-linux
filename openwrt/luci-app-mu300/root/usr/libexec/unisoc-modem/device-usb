@@ -11,7 +11,16 @@ LIB=${0%/*}/../../share/unisoc-modem/lib.sh
 . "$LIB"
 
 CFG=unisoc_modem.usb
-ROLE_FILE=${MU300_USB_ROLE_FILE:-/sys/class/usb_role/25100000.dwc3-role-switch/role}
+ROLE_FILE=${MU300_USB_ROLE_FILE:-}
+if [ -z "$ROLE_FILE" ]; then
+    # Devices expose different controller addresses; accept exactly one switch.
+    for candidate in /sys/class/usb_role/*/role; do
+        [ -f "$candidate" ] || continue
+        if [ -n "$ROLE_FILE" ]; then ROLE_FILE=; break; fi
+        ROLE_FILE=$candidate
+    done
+fi
+[ -n "$ROLE_FILE" ] || ROLE_FILE=/run/unisoc-no-usb-role-switch
 # The USB network mode for the next boot: ncm, ecm or rndis, alone on its line. boot/init reads it from the system
 # it boots and rebinds the gadget once when it differs (D12), then leaves APPLIED_FILE behind (K8).
 BOOT_FILE=${MU300_USB_NET_FILE:-/etc/mu300/usb-net}
@@ -20,6 +29,9 @@ NET_CLASS=${MU300_USB_NET_CLASS:-/sys/class/net}
 USB_BUS=${MU300_USB_BUS:-/sys/bus/usb/devices}
 RESCAN_MARKER=${MU300_USB_RESCAN_MARKER:-/run/unisoc-usb-host-rescan-done}
 NETWORK_SERVICE=${MU300_USB_NETWORK_SERVICE:-/etc/init.d/network}
+# Set only by an image whose early boot consumes /etc/mu300/usb-net.
+NET_SUPPORTED=${MU300_USB_NET_SUPPORTED:-0}
+[ ! -f /etc/mu300/usb-net-supported ] || NET_SUPPORTED=1
 IP=${MU300_USB_IP_BIN:-ip}
 get() { uci -q get "$CFG.$1" 2>/dev/null || true; }
 put() { uci -q set "$CFG.$1=$2"; }
@@ -119,11 +131,12 @@ case ${1:-} in
         [ "$role_auto" = 0 ] || net_auto=0
         [ "$role" != host ] || net_auto=0
         available=1
+        [ "$NET_SUPPORTED" = 1 ] || available=0
         if [ "$role" = host ] || [ "$role_auto" = 1 ]; then available=0; fi
         host_supported=1
         [ -e "$ROLE_FILE" ] || host_supported=0
-        printf '{"ok":1,"role":%s,"role_auto":%s,"host_supported":%s,"net_mode":"%s","net_scope":"%s","net_auto":%s,"net_available":%s}\n' \
-            "$(json_str "$role")" "$role_auto" "$host_supported" "$mode" "$scope" "$net_auto" "$available"
+        printf '{"ok":1,"role":%s,"role_auto":%s,"host_supported":%s,"net_mode":"%s","net_scope":"%s","net_auto":%s,"net_available":%s,"net_supported":%s}\n' \
+            "$(json_str "$role")" "$role_auto" "$host_supported" "$mode" "$scope" "$net_auto" "$available" "$NET_SUPPORTED"
         ;;
     set-role)
         role=${2:-}; auto=${3:-}
@@ -164,6 +177,7 @@ case ${1:-} in
         fi
         ;;
     set-net)
+        [ "$NET_SUPPORTED" = 1 ] || error 'USB protocol switching is not supported by this firmware boot image'
         mode=${2:-}; scope=${3:-}; auto=${4:-}
         case $mode in ecm|ncm|rndis) ;; *) error 'Invalid USB network mode' ;; esac
         case $scope in once|permanent) ;; *) error 'Invalid USB network scope' ;; esac

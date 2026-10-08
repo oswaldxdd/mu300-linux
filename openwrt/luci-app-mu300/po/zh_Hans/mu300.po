@@ -1277,3 +1277,6 @@ msgstr "锁定缓存不可用"
 
 msgid "No serving cell to lock to"
 msgstr "没有可锁定的服务小区"
+
+msgid "USB protocol switching is not supported by this firmware boot image"
+msgstr "当前固件的启动程序不支持 USB 网络协议切换"

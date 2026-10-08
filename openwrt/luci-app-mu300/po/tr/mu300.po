@@ -1277,3 +1277,6 @@ msgstr "Kilit önbelleği kullanılamıyor"
 
 msgid "No serving cell to lock to"
 msgstr "Kilitlenecek hizmet hücresi yok"
+
+msgid "USB protocol switching is not supported by this firmware boot image"
+msgstr "Bu yazılımın önyükleme görüntüsü USB protokol değiştirmeyi desteklemiyor"
