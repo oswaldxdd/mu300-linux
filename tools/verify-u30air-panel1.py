@@ -26,6 +26,8 @@ def verify(base,out):
  sums(release,'SHA256SUMS')
  delivery=json.loads(release['delivery.json']);assert digest(release[delivery['archive']])==delivery['sha256']
  new=members(release[delivery['archive']]);old=members((base/delivery['archive']).read_bytes())
+ for name in ['package/SHA256SUMS','package/BUILD-MANIFEST.json','package/mu300-update','package/mu300-kernel-7.2.8-u30air-native14.tar.gz']:
+  assert new[name][0].name==name,'exact package reader path incompatible '+name
  sums({n:b for n,(m,b) in new.items() if m.isfile()},'package/SHA256SUMS','package/')
  for n,(m,b) in old.items():
   if m.isfile() and n not in ['package/SHA256SUMS','package/BUILD-MANIFEST.json','package/mu300-openwrt-rootfs.tar.gz']:assert new[n][1]==b,'non-rootfs runtime payload changed '+n

@@ -41,7 +41,9 @@ def put(d,n,b,mode=0o644,link=None):
   p=str(parent)
   if p!='.' and p not in d:
    m=tarfile.TarInfo('./'+p);m.type=tarfile.DIRTYPE;m.mode=0o755;d[p]=(m,None)
- m=tarfile.TarInfo('./'+n);m.mode=mode;m.uid=m.gid=0
+ # Some consumers use exact getmember('package/SHA256SUMS'), not normalized paths.
+ member_name=d[n][0].name if n in d else './'+n
+ m=tarfile.TarInfo(member_name);m.mode=mode;m.uid=m.gid=0
  if link is not None: m.type=tarfile.SYMTYPE;m.linkname=link;d[n]=(m,None)
  else: m.size=len(b);d[n]=(m,b)
 def write_tar(d,p):
