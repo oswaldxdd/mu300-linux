@@ -1,0 +1,653 @@
+{
+  "version": "u30air-native14-restorefix3-2026.10.08-test",
+  "kernel_release": "7.2.8-u30air-native14",
+  "source_archive_sha256": "2719af88a15c28780d96f040e10fcfffbf7b096db1a2b199b9cff5bf03572bc7",
+  "firmware_zip_sha256": "2d3feb8c90ddd33e90f864c85b6f9b8fab2363f745c0736e969974aada8c03dd",
+  "kernel_bundle_sha256": "cc7c5d7bdf9e983f5d8fd87f6aebf9ec0cac68c76d5964218e24c0644b9becf8",
+  "files": [
+    {
+      "path": ".gitattributes",
+      "origin": "native14/.gitattributes",
+      "sha256": "ecc667c9582b8c6955ffe53622c15ff39224d490f50571859ea346871581c943",
+      "kind": "file",
+      "upstream_sha256": "ab91df015e8fd8ff45e45c41d07ce6e6382c260695abb99d8328a36ea0ab6cf6",
+      "adaptation": "Preserve frozen source bytes across Git checkout; no code changes."
+    },
+    {
+      "path": "README-restorefix2.md",
+      "origin": "native14/README-restorefix2.md",
+      "sha256": "fd9f986484732481e40f29c0c733cdf8a57b8971c000c1b8e809f4af0bced725",
+      "kind": "file"
+    },
+    {
+      "path": "README-restorefix3.md",
+      "origin": "native14/README-restorefix3.md",
+      "sha256": "35d549cdda6592fae5055a19460fd13ff215446350f39fcc05160cddb6d7cb9c",
+      "kind": "file"
+    },
+    {
+      "path": "RESTOREFIX2-REVIEW.md",
+      "origin": "native14/RESTOREFIX2-REVIEW.md",
+      "sha256": "e1cae34abc47205b908887d040203181d5aa4756ef1f6a44c3c83685fcd48312",
+      "kind": "file"
+    },
+    {
+      "path": "RESTOREFIX3-REVIEW.md",
+      "origin": "native14/RESTOREFIX3-REVIEW.md",
+      "sha256": "e9ec458c711b02b9bbdcfa59fab8db162a960e47dce70564ac05c841a87cc04e",
+      "kind": "file"
+    },
+    {
+      "path": "android-reference/COMMIT",
+      "origin": "native14/android-reference/COMMIT",
+      "sha256": "c968cc5e3c07ec4fec978e1c45ff199fe84301740a053570d146ec6adeee49d5",
+      "kind": "file"
+    },
+    {
+      "path": "android-reference/bq2560x-charger.c",
+      "origin": "native14/android-reference/bq2560x-charger.c",
+      "sha256": "dff29b8b58cd3e84e6271f4ca64052b2785da6e2504790092e6f85416bd2d561",
+      "kind": "file"
+    },
+    {
+      "path": "android-reference/charger-manager.c",
+      "origin": "native14/android-reference/charger-manager.c",
+      "sha256": "b8ca5a7585e5dff18a45051ffce47f6549cf506a1f144ddaaa9aaa304243ca50",
+      "kind": "file"
+    },
+    {
+      "path": "android-reference/phy-sprd-commonphy.c",
+      "origin": "native14/android-reference/phy-sprd-commonphy.c",
+      "sha256": "b642f18187102bf57f156bc437a4303edbd0b13aa4e0fce24e57a2563340c561",
+      "kind": "file"
+    },
+    {
+      "path": "android-reference/sc27xx_fuel_gauge.c",
+      "origin": "native14/android-reference/sc27xx_fuel_gauge.c",
+      "sha256": "0b6f6f1a46a45e6d439a25e0f64c6b6022b433c4e74630a1a5b6ac40c925b824",
+      "kind": "file"
+    },
+    {
+      "path": "android-reference/sprd-bc1p2.c",
+      "origin": "native14/android-reference/sprd-bc1p2.c",
+      "sha256": "ab49a6f548a71a65cf840bf1a8f7482dd737c3c69a2a5136b1d6e59f8ce607e1",
+      "kind": "file"
+    },
+    {
+      "path": "android-reference/sprd-bc1p2.h",
+      "origin": "native14/android-reference/sprd-bc1p2.h",
+      "sha256": "d19ad3479d418d745e0ff87cfa47b24b7279622ac491adab5560ad1f838610e2",
+      "kind": "file"
+    },
+    {
+      "path": "android-reference/sprd_battery_info.c",
+      "origin": "native14/android-reference/sprd_battery_info.c",
+      "sha256": "563130a246173d44215d1ebcbe1335b44cde6b2c0777250248fd8855dc82ac0c",
+      "kind": "file"
+    },
+    {
+      "path": "android-reference/sprd_fuel_gauge_core.c",
+      "origin": "native14/android-reference/sprd_fuel_gauge_core.c",
+      "sha256": "61079a0e95b2f0289058e1d5b39ed5b3eb039812cf12395fbc46e340dcc83974",
+      "kind": "file"
+    },
+    {
+      "path": "assemble-restorefix.py",
+      "origin": "native14/assemble-restorefix.py",
+      "sha256": "d237e80254647379e57f6199e1535bd4cba4f8ef2388f29bddfb13563d41d57d",
+      "kind": "file"
+    },
+    {
+      "path": "assemble-restorefix2.py",
+      "origin": "native14/assemble-restorefix2.py",
+      "sha256": "83775a59485db02f3c206a482dce66c3061b994f96b65707e20c911a97396686",
+      "kind": "file"
+    },
+    {
+      "path": "assemble-restorefix3.py",
+      "origin": "native14/assemble-restorefix3.py",
+      "sha256": "fb15c9bcedf768d5c2d976e197982607e10cc0f087fe0bf99fc6fed509182e24",
+      "kind": "file"
+    },
+    {
+      "path": "assemble.py",
+      "origin": "native14/assemble.py",
+      "sha256": "86c377a53b8b9d48f1e1831e2f10f3b1260854faa4ea68f6fab17a66e7a2ae4f",
+      "kind": "file"
+    },
+    {
+      "path": "collect-status.sh",
+      "origin": "native14/collect-status.sh",
+      "sha256": "f4488ee958d13c621f1c18398ca2f4d2396a0f00cc7c9b6bd014bcc3f11f9edc",
+      "kind": "file"
+    },
+    {
+      "path": "docs/BUILD-HISTORY.md",
+      "origin": "native14/README.md",
+      "sha256": "35d549cdda6592fae5055a19460fd13ff215446350f39fcc05160cddb6d7cb9c",
+      "kind": "file"
+    },
+    {
+      "path": "fcc-learning/README.md",
+      "origin": "native14/fcc-learning/README.md",
+      "sha256": "d0989128fa5f1aec89991bbd526ab37bb5284ad659bfa399bcd30ef872e530dd",
+      "kind": "file"
+    },
+    {
+      "path": "fcc-learning/build-complete-kernel.py",
+      "origin": "native14/fcc-learning/build-complete-kernel.py",
+      "sha256": "80b6e3e147069109b84c552dcf67b0e93b961a904a1fa9e7e50403003dee4837",
+      "kind": "file"
+    },
+    {
+      "path": "fcc-learning/charger-quiet-fixture.c",
+      "origin": "native14/fcc-learning/charger-quiet-fixture.c",
+      "sha256": "24cec2db3be11819e509d725af33e9d67c662de14bf47f06edfcce99ea140b39",
+      "kind": "file"
+    },
+    {
+      "path": "fcc-learning/compile-adapters.py",
+      "origin": "native14/fcc-learning/compile-adapters.py",
+      "sha256": "edac8966b130828ea86300e0941ae089d28274f37af0dffb3a9c68a04d27bd83",
+      "kind": "file"
+    },
+    {
+      "path": "fcc-learning/fgu-quiet-fixture.c",
+      "origin": "native14/fcc-learning/fgu-quiet-fixture.c",
+      "sha256": "3c605b52f50c5d58a9b6a3970f13d7fd2ace02547cf0dc2f4254d12ad35ebca4",
+      "kind": "file"
+    },
+    {
+      "path": "fcc-learning/prepare-firmware.py",
+      "origin": "native14/fcc-learning/prepare-firmware.py",
+      "sha256": "4daa322f6ee6f0944a0222b08646293cfda3b45adff02e53a7614a0fcc5e3313",
+      "kind": "file"
+    },
+    {
+      "path": "fcc-learning/prepare-runtime-update.py",
+      "origin": "native14/fcc-learning/prepare-runtime-update.py",
+      "sha256": "a0256dc31a57144680b18934bbda10b965b1f4a390346c27b35ca74e5d5a75e1",
+      "kind": "file"
+    },
+    {
+      "path": "fcc-learning/runtime/fcc-record.sh",
+      "origin": "native14/fcc-learning/runtime/fcc-record.sh",
+      "sha256": "afc7805eab8531142e7c2b6e04d0bc94932aa2539b57edf8e73003ecea141000",
+      "kind": "file"
+    },
+    {
+      "path": "fcc-learning/runtime/mu300-fcc-record",
+      "origin": "native14/fcc-learning/runtime/mu300-fcc-record",
+      "sha256": "6f5c63cf61440b6ba2d7f64989c66a198743f5ad93e71252a187a5ed3d693da1",
+      "kind": "file"
+    },
+    {
+      "path": "fcc-learning/runtime/mu300-fcc-record.init",
+      "origin": "native14/fcc-learning/runtime/mu300-fcc-record.init",
+      "sha256": "05941dbcfd6bef06aad9d5165ddb74ffbf966c1b0cd64265d9f8789c164076d5",
+      "kind": "file"
+    },
+    {
+      "path": "fcc-learning/source/android-charge-policy.h",
+      "origin": "native14/fcc-learning/source/android-charge-policy.h",
+      "sha256": "e697551f56fc5655be8fcc2ab66646e8f10fd68c2a47963ec0d90184bf7507c1",
+      "kind": "file"
+    },
+    {
+      "path": "fcc-learning/source/android-charge.inc",
+      "origin": "native14/fcc-learning/source/android-charge.inc",
+      "sha256": "52c3fd47df18ed1a0eed4cb83ee35e8694e9b02bfbe276f86820b4542430c5e8",
+      "kind": "file"
+    },
+    {
+      "path": "fcc-learning/source/fcc-kernel.inc",
+      "origin": "native14/fcc-learning/source/fcc-kernel.inc",
+      "sha256": "3d612dd0e3790c2fde2bebd2ec6d63cffdde015e5d2a31233451bb2a01471ecb",
+      "kind": "file"
+    },
+    {
+      "path": "fcc-learning/source/fcc-policy.h",
+      "origin": "native14/fcc-learning/source/fcc-policy.h",
+      "sha256": "687667b80113ab21a1016dc06f0b7fe5caad7978e47eeae479e04726574cdae1",
+      "kind": "file"
+    },
+    {
+      "path": "fcc-learning/source/fcc-quiet-policy.h",
+      "origin": "native14/fcc-learning/source/fcc-quiet-policy.h",
+      "sha256": "f6e409f93a971eb1afbddf74bb33fbd7cc1bc7556759a72e29dc49f7ad1656ba",
+      "kind": "file"
+    },
+    {
+      "path": "fcc-learning/source/fcc-state.h",
+      "origin": "native14/fcc-learning/source/fcc-state.h",
+      "sha256": "4c415880e2fe603158908edb02a1a7c4e5fd6e0e2d05dd37c12005d7b86adfc8",
+      "kind": "file"
+    },
+    {
+      "path": "fcc-learning/source/fgu-soc-policy.h",
+      "origin": "native14/fcc-learning/source/fgu-soc-policy.h",
+      "sha256": "ed933aa320ab2f43da28ff5a02e9b4c908d442807e652d4382c5ed79d7b44f93",
+      "kind": "file"
+    },
+    {
+      "path": "fcc-learning/source/fgu-soc-reconcile.inc",
+      "origin": "native14/fcc-learning/source/fgu-soc-reconcile.inc",
+      "sha256": "56d08847487390be7b50a46c348952538084de2c3508a0700281818bddbdaef3",
+      "kind": "file"
+    },
+    {
+      "path": "fcc-learning/source/host-policy.h",
+      "origin": "native14/fcc-learning/source/host-policy.h",
+      "sha256": "1123c086dc46de20a575d97dfc4e216f377104900fdd49a4cb125fad04429ab2",
+      "kind": "file"
+    },
+    {
+      "path": "fcc-learning/source/sc27xx_fuel_gauge.c",
+      "origin": "native14/fcc-learning/source/sc27xx_fuel_gauge.c",
+      "sha256": "d1a3c1c20a34542a7d38f823a60abbb1ff421bcf8e110178663fd13bb6ba65a9",
+      "kind": "file"
+    },
+    {
+      "path": "fcc-learning/source/sgm41511-native.c",
+      "origin": "native14/fcc-learning/source/sgm41511-native.c",
+      "sha256": "7966899a78e007e03c90ffa4ca2605c62523e03d522b71b846d712b5a2ed0493",
+      "kind": "file"
+    },
+    {
+      "path": "fcc-learning/source/sgm41511-policy.h",
+      "origin": "native14/fcc-learning/source/sgm41511-policy.h",
+      "sha256": "d9710606044c895f94f64e9e4610b5bbd5a85e17916fcdb52f28eaca61954b2d",
+      "kind": "file"
+    },
+    {
+      "path": "fcc-learning/test-charger-quiet.py",
+      "origin": "native14/fcc-learning/test-charger-quiet.py",
+      "sha256": "7084d40faab75db302f2618771f6a6b506fa6189c4ae6c59fa46faeb260a9640",
+      "kind": "file"
+    },
+    {
+      "path": "fcc-learning/test-fcc-policy.c",
+      "origin": "native14/fcc-learning/test-fcc-policy.c",
+      "sha256": "92f6fa0faa16f7e70b1b67838f40d97d0496a7cff744742754617f07cc013e60",
+      "kind": "file"
+    },
+    {
+      "path": "fcc-learning/test-fcc-quiet.c",
+      "origin": "native14/fcc-learning/test-fcc-quiet.c",
+      "sha256": "644adb473182cf29a7b68611a3171c57f77942375160bfbb48aa4dc430c348b7",
+      "kind": "file"
+    },
+    {
+      "path": "fcc-learning/test-fcc-state.c",
+      "origin": "native14/fcc-learning/test-fcc-state.c",
+      "sha256": "0d7f61fe77a64a3bf4d9dc2fa8f66e673e1a853f6725afe40ff7d9ce905b4a64",
+      "kind": "file"
+    },
+    {
+      "path": "fcc-learning/test-fgu-quiet.py",
+      "origin": "native14/fcc-learning/test-fgu-quiet.py",
+      "sha256": "8c1d0430711a7873b300a93bef806eaabca7d3e4c98ce9ed800e55e1321c9d61",
+      "kind": "file"
+    },
+    {
+      "path": "fcc-learning/test-full-worker.py",
+      "origin": "native14/fcc-learning/test-full-worker.py",
+      "sha256": "1d07eea7509308693dd893615146ebe9a288c76fc16018b52014327207c09102",
+      "kind": "file"
+    },
+    {
+      "path": "fcc-learning/test-kernel-adapter.py",
+      "origin": "native14/fcc-learning/test-kernel-adapter.py",
+      "sha256": "89cd85ed9941e83d12fba51da36a619523181cb0e4d0c0640db1f2cc7001d84e",
+      "kind": "file"
+    },
+    {
+      "path": "fcc-learning/test-restore-write.py",
+      "origin": "usb-host-fcc-learning/native14-development/test-restore-write.py",
+      "sha256": "7f676931b69585996e4ea79c2f15d78c9f2323d8bcec5e2d734dafc3f5f8da2f",
+      "kind": "file"
+    },
+    {
+      "path": "fcc-learning/test-runtime-rollback.py",
+      "origin": "native14/fcc-learning/test-runtime-rollback.py",
+      "sha256": "bf0f96e56d1bf0f4a59f398cbf7190811feab03715db2cbac503fa0112cca649",
+      "kind": "file"
+    },
+    {
+      "path": "fcc-learning/verify-native14-delivery.py",
+      "origin": "native14/fcc-learning/verify-native14-delivery.py",
+      "sha256": "3c185f2d619a01dea6567a04143e4d3b36f1f14d7e59e849cac829c366d2eaae",
+      "kind": "file"
+    },
+    {
+      "path": "finalize-kernel.py",
+      "origin": "native14/finalize-kernel.py",
+      "sha256": "756c145ef321150f769f2868cf0d06f8125d4bbcab57373f2ea4facec003f140",
+      "kind": "file"
+    },
+    {
+      "path": "install-device.sh",
+      "origin": "native14/install-device.sh",
+      "sha256": "10eb29b03965be8593f3e5c9297e6a7670dc7ec00413a5f21dfdf8db00de2697",
+      "kind": "file"
+    },
+    {
+      "path": "install-kernel-device.sh",
+      "origin": "native14/install-kernel-device.sh",
+      "sha256": "8d19b9c48d47ec4551eb5566490b948fce64701f65c96773ad5da126a0224a6b",
+      "kind": "file"
+    },
+    {
+      "path": "install.cmd",
+      "origin": "native14/install.cmd",
+      "sha256": "2978a6554fd1bbf4787e1ef82e7a3158a71e941c1d9d8671ccacfc3a29788256",
+      "kind": "file"
+    },
+    {
+      "path": "install.ps1",
+      "origin": "native14/install.ps1",
+      "sha256": "78d9ae4606f82c64a3b8562fba0c3707e4f644fbe7c51fe9c00e5f813af9443e",
+      "kind": "file"
+    },
+    {
+      "path": "mu300-update",
+      "origin": "usb-host-fcc-learning/native14-development/firmware/restorefix3-release/mu300-update",
+      "sha256": "9a6f94fa86caa57dfcfa0594fcb357e36e39158513a8f22bf11174d9aa15b606",
+      "kind": "file"
+    },
+    {
+      "path": "observe-charge-to-full.sh",
+      "origin": "native14/observe-charge-to-full.sh",
+      "sha256": "d32f92573fba077912b9f9fb781eaa555065d9ff9c04efc4fdba2f8b1e2857ce",
+      "kind": "file"
+    },
+    {
+      "path": "observe-native14-await-discharge.sh",
+      "origin": "native14/observe-native14-await-discharge.sh",
+      "sha256": "e9312d6c26af2d29dd6add48d53bdc0e2dea7a0ad3f9c84cbacac0b3b85152f7",
+      "kind": "file"
+    },
+    {
+      "path": "observe-native14-discharge.sh",
+      "origin": "native14/observe-native14-discharge.sh",
+      "sha256": "20d66ba3266066331aab1994e9ceeb957e4dcd5457b283fa2705ab3e450bcbd1",
+      "kind": "file"
+    },
+    {
+      "path": "observe-native14-fcc-status.sh",
+      "origin": "native14/observe-native14-fcc-status.sh",
+      "sha256": "f06c00c95a75a1aa82e0e1e818d54d39a1aa6f843da8c7851467a04981454fac",
+      "kind": "file"
+    },
+    {
+      "path": "overlay/etc/hotplug.d/iface/90-u30air-lan",
+      "origin": "native14/overlay/etc/hotplug.d/iface/90-u30air-lan",
+      "sha256": "078db89354d85a7126d2a6ab4c7308f72bed1e5702e5bbedf97ec50ce04e4895",
+      "kind": "file"
+    },
+    {
+      "path": "overlay/etc/hotplug.d/net/90-u30air-lan",
+      "origin": "native14/overlay/etc/hotplug.d/net/90-u30air-lan",
+      "sha256": "0b898bf1ebd742c8d03b7cfbd2f30ca2cf51b04fc45cbec436d94677d73bac17",
+      "kind": "file"
+    },
+    {
+      "path": "overlay/etc/init.d/mu300-fcc-record",
+      "origin": "native14/overlay/etc/init.d/mu300-fcc-record",
+      "sha256": "05941dbcfd6bef06aad9d5165ddb74ffbf966c1b0cd64265d9f8789c164076d5",
+      "kind": "file"
+    },
+    {
+      "path": "overlay/etc/rc.d/S20mu300-fcc-record",
+      "origin": "native14/overlay/etc/rc.d/S20mu300-fcc-record",
+      "sha256": "6f974d9949fd3be1dcfec6882fa569d8dbe8b2fcd543b2e0ccf7e29a74181c44",
+      "kind": "symlink"
+    },
+    {
+      "path": "overlay/opt/mu300/bin/mu300-fcc-record",
+      "origin": "native14/overlay/opt/mu300/bin/mu300-fcc-record",
+      "sha256": "6f5c63cf61440b6ba2d7f64989c66a198743f5ad93e71252a187a5ed3d693da1",
+      "kind": "file"
+    },
+    {
+      "path": "overlay/opt/mu300/bin/mu300-lan-usb",
+      "origin": "native14/overlay/opt/mu300/bin/mu300-lan-usb",
+      "sha256": "9e5d85b94e631a795264ff710b43a6a5b41b907e62b5d4d23ca7fdfe41ea044f",
+      "kind": "file"
+    },
+    {
+      "path": "overlay/opt/mu300/bin/mu300-update",
+      "origin": "native14/overlay/opt/mu300/bin/mu300-update",
+      "sha256": "9a6f94fa86caa57dfcfa0594fcb357e36e39158513a8f22bf11174d9aa15b606",
+      "kind": "file"
+    },
+    {
+      "path": "overlay/opt/mu300/lib/fcc-record.sh",
+      "origin": "native14/overlay/opt/mu300/lib/fcc-record.sh",
+      "sha256": "afc7805eab8531142e7c2b6e04d0bc94932aa2539b57edf8e73003ecea141000",
+      "kind": "file"
+    },
+    {
+      "path": "patch-fgu.py",
+      "origin": "native14/patch-fgu.py",
+      "sha256": "23a84e9a64eb019899c5d7d0c7ea5dc2a0febc9cb96605f944964951072475cd",
+      "kind": "file"
+    },
+    {
+      "path": "prepare-build.py",
+      "origin": "native14/prepare-build.py",
+      "sha256": "9730af1018cf4e651e07cd84eada0cb056ae2bd1bf9afa91039efb2e548ae88a",
+      "kind": "file"
+    },
+    {
+      "path": "recover-android.ps1",
+      "origin": "native14/recover-android.ps1",
+      "sha256": "489dbc1fecab8991864d3d319e341214cf08e725d4247ebececa2a33cdd250a0",
+      "kind": "file"
+    },
+    {
+      "path": "recover-android.sh",
+      "origin": "native14/recover-android.sh",
+      "sha256": "92fd89482e50cdaafca3c1c6cdb46d0295985efcb1390c5f55a6f079c7bbe497",
+      "kind": "file"
+    },
+    {
+      "path": "refine-fgu.py",
+      "origin": "native14/refine-fgu.py",
+      "sha256": "f2176b09338b4e353ed21c3150d2c369b63905b6122e08d4f821eea0235f8b41",
+      "kind": "file"
+    },
+    {
+      "path": "rollback-device.sh",
+      "origin": "native14/rollback-device.sh",
+      "sha256": "4511f7e3559124d6987e5f2e3e0e3f702dbe4e27485ece9fefe28b6e58af5f5e",
+      "kind": "file"
+    },
+    {
+      "path": "rollback.ps1",
+      "origin": "native14/rollback.ps1",
+      "sha256": "f5fa1235fe4360edb9ac252f012ae774048bad4a0b33f2d7dfb6e58ef653f88b",
+      "kind": "file"
+    },
+    {
+      "path": "source/android-charge-policy.h",
+      "origin": "native14/source/android-charge-policy.h",
+      "sha256": "e697551f56fc5655be8fcc2ab66646e8f10fd68c2a47963ec0d90184bf7507c1",
+      "kind": "file"
+    },
+    {
+      "path": "source/android-charge.inc",
+      "origin": "native14/source/android-charge.inc",
+      "sha256": "52c3fd47df18ed1a0eed4cb83ee35e8694e9b02bfbe276f86820b4542430c5e8",
+      "kind": "file"
+    },
+    {
+      "path": "source/fcc-kernel.inc",
+      "origin": "native14/source/fcc-kernel.inc",
+      "sha256": "3d612dd0e3790c2fde2bebd2ec6d63cffdde015e5d2a31233451bb2a01471ecb",
+      "kind": "file"
+    },
+    {
+      "path": "source/fcc-policy.h",
+      "origin": "native14/source/fcc-policy.h",
+      "sha256": "687667b80113ab21a1016dc06f0b7fe5caad7978e47eeae479e04726574cdae1",
+      "kind": "file"
+    },
+    {
+      "path": "source/fcc-quiet-policy.h",
+      "origin": "native14/source/fcc-quiet-policy.h",
+      "sha256": "f6e409f93a971eb1afbddf74bb33fbd7cc1bc7556759a72e29dc49f7ad1656ba",
+      "kind": "file"
+    },
+    {
+      "path": "source/fcc-state.h",
+      "origin": "native14/source/fcc-state.h",
+      "sha256": "4c415880e2fe603158908edb02a1a7c4e5fd6e0e2d05dd37c12005d7b86adfc8",
+      "kind": "file"
+    },
+    {
+      "path": "source/fgu-soc-policy.h",
+      "origin": "native14/source/fgu-soc-policy.h",
+      "sha256": "ed933aa320ab2f43da28ff5a02e9b4c908d442807e652d4382c5ed79d7b44f93",
+      "kind": "file"
+    },
+    {
+      "path": "source/fgu-soc-reconcile.inc",
+      "origin": "native14/source/fgu-soc-reconcile.inc",
+      "sha256": "56d08847487390be7b50a46c348952538084de2c3508a0700281818bddbdaef3",
+      "kind": "file"
+    },
+    {
+      "path": "source/host-policy.h",
+      "origin": "native14/source/host-policy.h",
+      "sha256": "1123c086dc46de20a575d97dfc4e216f377104900fdd49a4cb125fad04429ab2",
+      "kind": "file"
+    },
+    {
+      "path": "source/mu300-usb.c",
+      "origin": "native14/source/mu300-usb.c",
+      "sha256": "62ddd1bd306f3de3fa2f54685c6dd1162a26e2a2b33adb52a6ee18f8628e45c6",
+      "kind": "file"
+    },
+    {
+      "path": "source/sc27xx_fuel_gauge.c",
+      "origin": "native14/source/sc27xx_fuel_gauge.c",
+      "sha256": "d1a3c1c20a34542a7d38f823a60abbb1ff421bcf8e110178663fd13bb6ba65a9",
+      "kind": "file"
+    },
+    {
+      "path": "source/sgm41511-native.c",
+      "origin": "native14/source/sgm41511-native.c",
+      "sha256": "7966899a78e007e03c90ffa4ca2605c62523e03d522b71b846d712b5a2ed0493",
+      "kind": "file"
+    },
+    {
+      "path": "source/sgm41511-policy.h",
+      "origin": "native14/source/sgm41511-policy.h",
+      "sha256": "d9710606044c895f94f64e9e4610b5bbd5a85e17916fcdb52f28eaca61954b2d",
+      "kind": "file"
+    },
+    {
+      "path": "source/test-host-policy.c",
+      "origin": "native14/source/test-host-policy.c",
+      "sha256": "5a06ce209c1068b8aa616aecf4234c7a13e8a472c2374504393cfe454e8984dc",
+      "kind": "file"
+    },
+    {
+      "path": "source/u30air-usb.h",
+      "origin": "native14/source/u30air-usb.h",
+      "sha256": "a4637a4335a72b52b28266ac7039963bcbbb967428d9969b9c40a8d038c22685",
+      "kind": "file"
+    },
+    {
+      "path": "source/udc-observer.c.inc",
+      "origin": "native14/source/udc-observer.c.inc",
+      "sha256": "045d2febb3b89de01da508e721e89d215b2a10f0d13351a62047a2fd3b7d1c09",
+      "kind": "file"
+    },
+    {
+      "path": "test-android-charge.py",
+      "origin": "native14/test-android-charge.py",
+      "sha256": "058f525697fd14bf76f23b8065774d1112ce50060729ebdde32c010deb6b9c28",
+      "kind": "file"
+    },
+    {
+      "path": "test-battery.py",
+      "origin": "native14/test-battery.py",
+      "sha256": "9910f19fe23221f8d3442335336a15b8067e3d8c4ce05b6a894ea8497de3544e",
+      "kind": "file"
+    },
+    {
+      "path": "test-bus-pm.py",
+      "origin": "native14/test-bus-pm.py",
+      "sha256": "e9d853838f90f55c50adbc215ff67e937d82b9ac525e93473b19224c746c0ddc",
+      "kind": "file"
+    },
+    {
+      "path": "test-charge-init.py",
+      "origin": "native14/test-charge-init.py",
+      "sha256": "98712cdb6680ce80e177a73a60105327916594b3beb804f12e4d91e44ad336b9",
+      "kind": "file"
+    },
+    {
+      "path": "test-deployment-compat.py",
+      "origin": "native14/test-deployment-compat.py",
+      "sha256": "8bd9df65b7f6ecc8d5ccf848aca32b825399f745fb5dd97d97bc0b1af462ed47",
+      "kind": "file"
+    },
+    {
+      "path": "test-lan.py",
+      "origin": "native14/test-lan.py",
+      "sha256": "e0acfb21ac63a8e1a27cd77e02ba5ce45f9b3008b63918ce8e1c1b0b0434e62d",
+      "kind": "file"
+    },
+    {
+      "path": "test-mu300-update-idempotent.py",
+      "origin": "native14/test-mu300-update-idempotent.py",
+      "sha256": "7de8fc82f85092dc58a26e46a80195a7b68e8f1785bde854784216a002484fcd",
+      "kind": "file"
+    },
+    {
+      "path": "test-native.py",
+      "origin": "native14/test-native.py",
+      "sha256": "d2bb09d1995d28d2c5bf1a84936045d6018ee35eb0f760bf1bc34b4ebc76638e",
+      "kind": "file"
+    },
+    {
+      "path": "test-saved-soc.py",
+      "origin": "native14/test-saved-soc.py",
+      "sha256": "5766de46b8dce68bc85cd6afdf19fe1c85c9a4436e726f0a3da04985e1b6c8de",
+      "kind": "file"
+    },
+    {
+      "path": "test-soc-reconcile.py",
+      "origin": "native14/test-soc-reconcile.py",
+      "sha256": "2613c673bec3d43c48620a11dfc2d4f3c1f592977405c9977d722ba2925e2959",
+      "kind": "file"
+    },
+    {
+      "path": "test-soc-worker.py",
+      "origin": "native14/test-soc-worker.py",
+      "sha256": "b6c2b24b9b5fe0204f6abce67a45c8adad49c0faf3a1a760c662c05d2e877056",
+      "kind": "file"
+    },
+    {
+      "path": "verify-delivery.py",
+      "origin": "native14/verify-delivery.py",
+      "sha256": "9e9df7cc9380269cacc6f1510c5e2a1ad6dcfc4cdf5b6c730968fef29c92bc3e",
+      "kind": "file"
+    },
+    {
+      "path": "verify-restorefix2-delivery.py",
+      "origin": "native14/verify-restorefix2-delivery.py",
+      "sha256": "ee34a4aeeedf71764dcd30ca6300abe19d382bfb018494863dc7db4443183e43",
+      "kind": "file"
+    },
+    {
+      "path": "verify-restorefix3-delivery.py",
+      "origin": "native14/verify-restorefix3-delivery.py",
+      "sha256": "2e587ff4ba27b5360a2e138d2c15f4d3d53520073676ddda6d81a6f889c1a603",
+      "kind": "file"
+    }
+  ]
+}

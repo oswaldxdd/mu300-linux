@@ -41,7 +41,7 @@ fetch_file() {  # fetch_file URL OUT (resumes a partial OUT)
 
 # fetch_verified TAG ASSET: the release file in $STAGE, checked against the release's SHA256SUMS; a file that is
 # already there and matches is not downloaded again, a partial one is resumed
-STAGE=$DISK/.mu300-update
+STAGE=${MU300_STAGE:-$DISK/.mu300-update}
 fetch_verified() {
     base=https://github.com/$REPO/releases/download/$1
     mkdir -p "$STAGE"
@@ -335,7 +335,9 @@ head_sha() { dd if="$1" bs=4096 count=$(( ($2 + 4095) / 4096 )) 2>/dev/null | he
 
 # write BODY (from offset 0), VBMETA right behind it and FOOTER into the last 64 bytes of boot_b, then read it back
 write_boot() {  # write_boot DEV PSIZE BODY VBMETA FOOTER
-    cat "$3" "$4" > "$3.all"
+    [ "$(fsize "$5")" = 64 ] || return 1
+    cat "$3" "$4" > "$3.all" || return 1
+    [ "$(fsize "$3.all")" = "$(( $(fsize "$3") + $(fsize "$4") ))" ] || return 1
     dd if="$3.all" of="$1" bs=4096 conv=notrunc 2>/dev/null && sync || return 1
     dd if="$5" of="$1" bs=64 seek=$(($2 / 64 - 1)) conv=notrunc 2>/dev/null && sync || return 1
     echo 3 > /proc/sys/vm/drop_caches 2>/dev/null
@@ -428,12 +430,13 @@ boot_update() {  # boot_update TAG   (MU300_KERNEL_BUNDLE=FILE uses a local mu30
     # new image: same header with the new sizes, kernel, device segment + generic segment, AVB tail
     nksz=$(fsize "$tmp/Image")
     nrsz=$(( $(fsize "$BOOTDIR/device-ramdisk.lz4") + $(fsize "$tmp/ramdisk-generic.lz4") ))
-    cp "$tmp/hdr" "$tmp/new"
+    cp "$tmp/hdr" "$tmp/new" || return 1
     bytes "$nksz" 4 le | poke "$tmp/new" 8
     bytes "$nrsz" 4 le | poke "$tmp/new" 12
-    cat "$tmp/Image" >> "$tmp/new"; pad_page "$tmp/new"
-    cat "$BOOTDIR/device-ramdisk.lz4" "$tmp/ramdisk-generic.lz4" >> "$tmp/new"; pad_page "$tmp/new"
+    cat "$tmp/Image" >> "$tmp/new" && pad_page "$tmp/new" || return 1
+    cat "$BOOTDIR/device-ramdisk.lz4" "$tmp/ramdisk-generic.lz4" >> "$tmp/new" && pad_page "$tmp/new" || return 1
     nosize=$(fsize "$tmp/new")
+    [ "$nosize" = "$((4096 + (nksz + 4095) / 4096 * 4096 + (nrsz + 4095) / 4096 * 4096))" ] || return 1
     [ $((nosize + vbs)) -le "$PERSIST_LOG" ] ||
         { echo "boot: the new image ($nosize bytes) would reach the persistent log area, not touching boot_b" >&2; return 1; }
     cp "$tmp/footer" "$tmp/newfooter"
@@ -664,7 +667,8 @@ case ${1:-check} in
     check) check ;;
     apply) shift; apply "$@" ;;
     boot) mounted_disk; t=${MU300_RELEASE:-$(latest_release)}; [ -n "$t" ] || die "could not reach GitHub (is the device online?)"
-          boot_update "$t" || exit 1; rm -rf "$STAGE"; if [ -n "${BOOT_CHANGED:-}" ]; then printf '\nReboot to start the new kernel.\n'; fi ;;
+          boot_update "$t" || exit 1; rm -rf "$STAGE"
+          if [ -n "${BOOT_CHANGED:-}" ]; then printf '\nReboot to start the new kernel.\n'; fi ;;
     rollback) shift; rollback "$@" ;;
     rollback-boot) rollback_boot ;;
     kernel) shift; kernel_cmd "$@" ;;

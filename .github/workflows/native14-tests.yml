@@ -1,0 +1,16 @@
+name: Native14 source checks
+on:
+  push:
+    branches: [main]
+    paths: ['experimental/u30air-native14/**', '.github/workflows/native14-tests.yml']
+  pull_request:
+    paths: ['experimental/u30air-native14/**', '.github/workflows/native14-tests.yml']
+permissions:
+  contents: read
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Native14 policy, lifecycle and syntax checks
+        run: python3 experimental/u30air-native14/run-tests.py

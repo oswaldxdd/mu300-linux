@@ -391,3 +391,7 @@ The kernel source used here is mirrored at
   with one exception: [`stock/`](stock/) holds the stock `trustos` (TEE) image for firmware `ZYV1.0.0B09`, as a
   last-resort repair for devices whose own TEE is damaged; all rights to it remain with ZTE/Unisoc. Read
   [`stock/README.md`](stock/README.md) before touching it — it can make a non-booting device worse.
+
+## U30 Air native14 实验维护
+
+最新 native14 / restorefix3 源码、离线测试及当前验证边界见 [实验维护目录](experimental/u30air-native14/README.md)。OpenWrt 与 Android 的电量显示差异仍待修复。

@@ -1,0 +1,35 @@
+#!/bin/sh
+# Event-driven attachment for the U30 Air RTL8153B LAN port.
+PATH=/usr/sbin:/usr/bin:/sbin:/bin:/opt/mu300/bin
+[ "$(uci -q get network.lan.device)" = br-lan ] || exit 0
+[ -d /sys/class/net/br-lan ] || exit 0
+for port in /sys/class/net/*; do
+    [ -e "$port/device" ] || continue
+    driver=$(readlink -f "$port/device/driver") || continue
+    [ "${driver##*/}" = r8152 ] || continue
+    dev=$(readlink -f "$port/device") || continue
+    usb=${dev%/*}
+    [ "$(cat "$usb/idVendor" 2>/dev/null)" = 0bda ] || continue
+    [ "$(cat "$usb/idProduct" 2>/dev/null)" = 8153 ] || continue
+    iface=${port##*/}
+    case "$iface" in ''|*[!a-zA-Z0-9_.:-]*) continue ;; esac
+    if [ -L "$port/master" ]; then
+        master=$(readlink -f "$port/master" 2>/dev/null)
+        if [ "${master##*/}" != br-lan ]; then
+            logger -t mu300-lan-usb "$iface belongs to ${master##*/}; leaving it unchanged"
+            continue
+        fi
+    else
+        # ubus add_device can return success without attaching a late USB NIC
+        # on this netifd build, so attach the verified adapter to the bridge.
+        if ! ip link set dev "$iface" master br-lan; then
+            logger -t mu300-lan-usb "Could not attach $iface to br-lan"
+            continue
+        fi
+    fi
+    if ! ip link set dev "$iface" up; then
+        logger -t mu300-lan-usb "Could not bring $iface up"
+        continue
+    fi
+    logger -t mu300-lan-usb "$iface is attached to br-lan and up"
+done

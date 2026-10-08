@@ -25,6 +25,30 @@ class Update(ShellTest):
         return self.sh(shell, f'. "{BIN}/mu300-update"; {code}', MU300_LIB=1, MU300_DISK=self.disk, MU300_BIN=BIN,
                        MU300_SYSROOT=self.root, **env)
 
+    def test_boot_cli_exit_status(self):
+        # Exercise the actual CLI dispatch after sourcing the real functions.
+        # Only device-facing operations are stubbed; no block device is opened.
+        entrypoint = (BIN / 'mu300-update').read_text().split('[ "$(id -u)" = 0 ]', 1)[1]
+        entrypoint = '[ "$(id -u)" = 0 ]' + entrypoint
+        for shell in self.each_shell():
+            for status, changed, want in [(0, '', 0), (0, '1', 0), (7, '', 1)]:
+                code = f"""
+id() {{ printf '%s\\n' 0; }}
+mounted_disk() {{ :; }}
+keepalive_start() {{ :; }}
+keepalive_stop() {{ :; }}
+resume_data() {{ :; }}
+boot_update() {{ BOOT_CHANGED='{changed}'; return {status}; }}
+MU300_RELEASE=fixture-local
+STAGE='{self.tmp}/cli-stage'
+set -- boot
+{entrypoint}
+"""
+                result = self.up(shell, code)
+                self.assertEqual(result.returncode, want, (shell, status, changed, result.stderr))
+                self.assertEqual('Reboot to start the new kernel.' in result.stdout,
+                                 status == 0 and bool(changed))
+
     def test_sourcing_does_nothing(self):
         for shell in self.each_shell():
             r = self.up(shell, 'echo loaded')
