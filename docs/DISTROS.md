@@ -24,6 +24,33 @@ What a distribution has to bring:
 | Debian 13 | `docker build --build-arg BASE=debian:13 -t mu300-debian:13 rootfs/` then `rootfs/assemble.sh` | same package names as Ubuntu |
 | Kali Linux | `docker build --build-arg BASE=kalilinux/kali-rolling -t mu300-kali rootfs/` then `rootfs/assemble.sh` | see below |
 
+## OpenWrt MU300 control panel
+
+The OpenWrt rootfs built by `openwrt/build-rootfs.sh` includes the source-built `luci-app-mu300` control panel. Its
+application source is from `dikeckaan/mu300-linux` v2026.10.11 (`5a892370`); the rest of this tree is based on
+`oswaldxdd/mu300-linux` commit `3f5de63`. The image keeps its existing rootfs asset name and default LuCI theme.
+
+The build installs the panel's menu, rpcd ACL, RPC backend, adapters, Chinese and Turkish catalogs, and the two
+dedicated AT channels used by the dashboard and SMS pool. The dashboard can change persistent cellular locks and
+run modem actions; an invalid network lock can disconnect mobile data until it is cleared. The AT page is root-only
+through LuCI's administrator ACL and keeps the backend's command restrictions.
+
+The SMS pool syncs SIM messages periodically through `AT+CMGL=4`; on MU300 this can change an unread SIM message to
+read. The service copies messages to the local pool but does not delete them from the SIM automatically. Use the
+panel's explicit SIM-delete action only when that is intended.
+
+The U30 Air battery tile displays readings exposed by the running kernel, including instantaneous watts when the
+fuel gauge provides the required values. It does not rewrite battery readings. The OpenWrt 2% versus Android 100%
+disagreement remains unresolved and is not corrected by this panel integration.
+
+The Languages page can still select LuCI's configured language. Its optional extra-language pack manager requires
+`mu300-extra`, which is absent from this base tree; the page reports that feature as unavailable, and the build does
+not claim to install the extra language pack.
+
+The upstream panel release also changes WAN IPv6/NDP defaults. Those defaults are deliberately not included here:
+the existing `network.wan` configuration remains in control. This build does not include the optional Aurora theme
+APK; the panel uses the image's current LuCI theme.
+
 The Arch build removes the `linux-aarch64` kernel and `linux-firmware` packages that the generic Arch ARM image
 ships (about 1.5 GB): this device boots the vendor kernel from the boot image and takes its firmware from Android.
 `pacman`'s Landlock sandbox is disabled for the build only, because it cannot work inside the build container.

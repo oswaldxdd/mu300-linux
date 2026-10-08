@@ -110,3 +110,10 @@ copies the current Android hotspot into it before the first boot, otherwise a ra
 From Android, `boot/android-boot-linux.sh boot-linux-slotb.img` boots the image already on `boot_b` again without reflashing.
 If Linux ever fails before `mu300-boot-ok` runs, LK sees `tries_remaining=1` on the next boot and falls back to Android.
 
+### Optional OpenWrt root filesystem
+
+`openwrt/build-rootfs.sh` builds the OpenWrt variant on a host with Docker's arm64 support and Python 3 (standard
+library only). It compiles the checked-in MU300 LuCI translations and includes the panel, rpcd ACL/menu, and required
+runtime adapters. The release packaging step keeps the existing `mu300-openwrt-rootfs.tar.gz` asset name. The panel
+is included for the OpenWrt flavor; the ImmortalWrt flavor remains unchanged because this panel release is verified
+for OpenWrt only.
