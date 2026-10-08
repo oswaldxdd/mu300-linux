@@ -98,7 +98,7 @@ open_tty || { echo "mu300-atd: cannot open $DEV" >&2; exit 1; }
 URCDIR=$DIR/urc
 URCMAX=${MU300_AT_URC_MAX:-65536}
 mkdir -p "$URCDIR"
-for n in ${MU300_AT_URC_CHANNELS:-0}; do
+for n in ${MU300_AT_URC_CHANNELS-0}; do
     other=${DEV%[0-9]}$n
     [ "$other" = "$DEV" ] && continue
     [ -c "$other" ] || continue

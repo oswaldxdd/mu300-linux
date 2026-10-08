@@ -7,6 +7,7 @@
 #   tools/logdw/logdw  tools/bt-init/mu300-bt-init  tools/keys/mu300-keys  tools/gpu/cltest  busybox (static, full)
 #   xray, hev-socks5-tunnel (tools/fetch-xray.sh) and sing-box (tools/fetch-sing-box.sh), for mu300-vpn
 #   upstream/out/modules/*.ko (optional: out-of-tree WCN modules for the mainline 6.18 kernel)
+# The OpenWrt flavor also includes the source-built MU300 LuCI panel and its runtime adapters.
 set -eu
 FLAVOUR=${MU300_FLAVOUR:-openwrt}
 case $FLAVOUR in
@@ -20,6 +21,33 @@ OUT=${1:-mu300-$FLAVOUR-$VER-rootfs.tar.gz}
 TOP=$(cd "$(dirname "$0")/.." && pwd)
 # build inputs (out/, firmware/, android-subset/, tools binaries, busybox) may live outside the checkout
 IN=${MU300_INPUTS:-$TOP}
+LUCI_CAT=
+if [ "$FLAVOUR" = openwrt ]; then
+    LUCI_CAT=$(mktemp -d)
+    trap 'rm -rf "$LUCI_CAT"' EXIT
+    for f in \
+        openwrt/luci-app-mu300/Makefile \
+        openwrt/luci-app-mu300/root/usr/libexec/rpcd/mu300dash \
+        openwrt/luci-app-mu300/root/usr/share/rpcd/acl.d/luci-app-mu300.json \
+        openwrt/luci-app-mu300/root/usr/share/luci/menu.d/luci-app-mu300.json \
+        openwrt/luci-overlay/etc/init.d/mu300-atd-dash \
+        openwrt/luci-overlay/etc/init.d/mu300-smsd \
+        openwrt/luci-overlay/opt/mu300/bin/mu300-sms \
+        openwrt/luci-overlay/opt/mu300/bin/mu300-smsd; do
+        [ -s "$TOP/$f" ] || { echo "required MU300 LuCI source missing: $f" >&2; exit 1; }
+    done
+    [ ! -e "$TOP/openwrt/luci-overlay/etc/uci-defaults/91-mu300-luci" ] || {
+        echo "refusing to include 91-mu300-luci: it changes WAN IPv6/NDP defaults" >&2; exit 1;
+    }
+    for l in tr zh_Hans; do
+        code=$(awk -F '\t' -v d="$l" '$1 == d {print $2}' "$TOP/openwrt/luci-languages.tsv")
+        [ -n "$code" ] || { echo "no LuCI language mapping for $l" >&2; exit 1; }
+        python3 "$TOP/tools/po2lmo.py" "$TOP/openwrt/luci-app-mu300/po/$l/mu300.po" "$LUCI_CAT/mu300.$code.lmo"
+    done
+    [ -s "$LUCI_CAT/mu300.tr.lmo" ] && [ -s "$LUCI_CAT/mu300.zh-cn.lmo" ] || {
+        echo "MU300 LuCI translation catalogs were not built" >&2; exit 1;
+    }
+fi
 TARBALL=$FLAVOUR-$VER-armsr-armv8-rootfs.tar.gz
 URL=$BASEURL/$VER/targets/armsr/armv8
 
@@ -50,8 +78,15 @@ for o in firmware android-subset android-gpu-subset tools/logdw/logdw tools/bt-i
     [ -e "$IN/$o" ] && echo "  + $o" || echo "  - $o   (missing: the image is built without it)"
 done
 # shellcheck disable=SC2046
+set --
+if [ "$FLAVOUR" = openwrt ]; then
+    set -- "$@" -v "$TOP/openwrt/luci-app-mu300:/in/luci-plugin:ro" \
+        -v "$TOP/openwrt/luci-overlay:/in/luci-overlay:ro" \
+        -v "$LUCI_CAT:/in/luci-catalogs:ro"
+fi
 docker run --rm --platform linux/arm64 \
   -v "$TOP/rootfs/overlay/opt/mu300":/in/opt-mu300:ro -v "$TOP/rootfs/overlay/etc/mu300/vpn.conf.example":/in/vpn.conf.example:ro -v "$TOP/openwrt/overlay":/in/overlay:ro \
+  "$@" \
   -v "$TOP/boot/module-order.txt":/in/module-order.txt:ro -v "$IN/out/modules":/in/modules:ro \
   $(opt out/modules.builtin modules.builtin) $(opt out/modules.builtin.modinfo modules.builtin.modinfo) \
   $(opt firmware firmware) $(opt android-subset android-subset) $(opt android-gpu-subset android-gpu-subset) \
@@ -64,6 +99,10 @@ apk update >/dev/null
 # i2c-tools, gpiod-tools: mu300-usb (the charger of the U30 Air) and mu300-nfc (its NFC tag)
 apk add wpad-basic-mbedtls wifi-scripts iwinfo wireless-regdb iw bash ip-full coreutils-stty openssl-util \
     i2c-tools gpiod-tools >/dev/null
+if [ -d /in/luci-plugin ]; then
+    # Dependencies declared by openwrt/luci-app-mu300/Makefile; the base rootfs supplies the LuCI web server and theme.
+    apk add luci-base rpcd jsonfilter >/dev/null
+fi
 # ujail drops CAP_PERFMON (38), which this 5.4 kernel does not know: jailed services (dnsmasq, ntpd) crash-loop
 apk del procd-ujail procd-seccomp >/dev/null 2>&1 || true
 # online firmware upgrades flash whole-disk armsr images: that would overwrite the eMMC, so remove them
@@ -84,6 +123,19 @@ printf "127.0.0.1\tlocalhost\n\n::1\tlocalhost ip6-localhost ip6-loopback\nff02:
 printf "mu300\n" > $R/etc/hostname   # the real one comes from uci (etc/uci-defaults/90-mu300)
 cp -a /in/opt-mu300 $R/opt/mu300
 cp -a /in/overlay/. $R/
+if [ -d /in/luci-plugin ]; then
+    cp -a /in/luci-overlay/. $R/
+    cp -a /in/luci-plugin/root/. $R/
+    mkdir -p $R/www $R/usr/lib/lua/luci/i18n
+    cp -a /in/luci-plugin/htdocs/. $R/www/
+    for f in /in/luci-catalogs/mu300.*.lmo; do cp "$f" $R/usr/lib/lua/luci/i18n/; done
+    chmod 0755 $R/etc/init.d/unisoc-modem-ui $R/etc/hotplug.d/net/90-unisoc-usb-host $R/etc/hotplug.d/iface/90-unisoc-usb-host $R/usr/libexec/unisoc-modem/*
+    chmod 0755 $R/usr/libexec/rpcd/mu300dash $R/etc/init.d/mu300-atd-dash $R/etc/init.d/mu300-smsd $R/opt/mu300/bin/mu300-sms $R/opt/mu300/bin/mu300-smsd
+    # Register panel languages without changing WAN, PDP, IPv6 or NDP settings.
+    uci -c $R/etc/config -q get luci.languages.tr >/dev/null || uci -c $R/etc/config set luci.languages.tr="Türkçe (Turkish)"
+    uci -c $R/etc/config -q get luci.languages.zh_cn >/dev/null || uci -c $R/etc/config set luci.languages.zh_cn="简体中文 (Simplified Chinese)"
+    uci -c $R/etc/config commit luci
+fi
 mv $R/sbin/sysupgrade $R/sbin/sysupgrade.openwrt && mv $R/usr/libexec/mu300-sysupgrade $R/sbin/sysupgrade
 M=$R/lib/modules/$KREL; mkdir -p $M
 cp /in/modules/*.ko $M/          # ubox kmodloader expects the modules flat in /lib/modules/<release>/
@@ -124,8 +176,15 @@ for s in mu300-accounts mu300-vendor mu300-hw mu300-post mu300-toolkit mu300-atd
     n=$(sed -n "s/^START=//p" $R/etc/init.d/$s)
     ln -sf ../init.d/$s $R/etc/rc.d/S$n$s
 done
+if [ -d /in/luci-plugin ]; then
+    for s in unisoc-modem-ui mu300-atd-dash mu300-smsd; do
+        n=$(sed -n "s/^START=//p" $R/etc/init.d/$s)
+        ln -sf ../init.d/$s $R/etc/rc.d/S$n$s
+    done
+fi
 # busybox PATH is /usr/sbin:/usr/bin:/sbin:/bin, so the commands go into /usr/bin
 for c in mu300-toolkit mu300-next-boot mu300-os mu300-update mobile-data mu300-at mu300-vpn wifi-client mu300-ttl mu300-wifi-band mu300-led mu300-usb mu300-nfc; do ln -sf /opt/mu300/bin/$c $R/usr/bin/$c; done
+if [ -d /in/luci-plugin ]; then ln -sf /opt/mu300/bin/mu300-sms $R/usr/bin/mu300-sms; fi
 # no kernel of its own: OpenWrt kmods (6.12) and grub are unused on this device
 rm -rf $R/lib/modules/6.* $R/boot
 # out-of-tree modules for the experimental mainline kernel (upstream/)
@@ -137,3 +196,4 @@ fi
 cd $R && tar -czf /out/$OUT .
 ls -la /out/$OUT'
 rm -rf "$REGDB"
+if [ -n "$LUCI_CAT" ]; then rm -rf "$LUCI_CAT"; fi
