@@ -304,8 +304,10 @@
     {
       "path": "fcc-learning/test-restore-write.py",
       "origin": "usb-host-fcc-learning/native14-development/test-restore-write.py",
-      "sha256": "7f676931b69585996e4ea79c2f15d78c9f2323d8bcec5e2d734dafc3f5f8da2f",
-      "kind": "file"
+      "sha256": "ec5608d9a85a7226f05684fba1eb4c62613d695189872eb88bfe11e424f9b937",
+      "kind": "file",
+      "upstream_sha256": "7f676931b69585996e4ea79c2f15d78c9f2323d8bcec5e2d734dafc3f5f8da2f",
+      "adaptation": "Test-only: capture outer temporary directory before shell function positional arguments shadow it; supports unprivileged CI."
     },
     {
       "path": "fcc-learning/test-runtime-rollback.py",

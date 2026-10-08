@@ -10,7 +10,7 @@ with tempfile.TemporaryDirectory(prefix='fcc-restore-test-') as work:
     target = directory / 'attribute'
     def run(body, success=True):
         result = subprocess.run(['sh', '-c',
-            '. "$1"; mktemp() { command mktemp "$3/request.XXXXXX"; }; ' + body,
+            '. "$1"; task_restore_directory=$3; mktemp() { command mktemp "$task_restore_directory/request.XXXXXX"; }; ' + body,
             'test', str(library), str(target), str(directory)],
             text=True, capture_output=True)
         assert (result.returncode == 0) == success, result.stderr
