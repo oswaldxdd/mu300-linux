@@ -395,3 +395,7 @@ The kernel source used here is mirrored at
 ## U30 Air native14 实验维护
 
 最新 native14 / restorefix3 源码、离线测试及当前验证边界见 [实验维护目录](experimental/u30air-native14/README.md)。OpenWrt 与 Android 的电量显示差异仍待修复。
+
+## U30 Air charge2 发布源码
+
+v2026.10.15-charge2 的完整源码快照、7.2.9 构建入口、充电上限 LuCI/RPC/runtime、发布日志和完整包装配说明位于 [charge2 目录](experimental/u30air-charge2/README.md)。该路径与 native14 实验源码并列；仓库根目录的旧 5.4/6.18 构建和 LuCI 不会启用 charge2 充电上限。请按 charge2 目录内说明构建或安装，勿把单独 UI 复制进旧版固件。

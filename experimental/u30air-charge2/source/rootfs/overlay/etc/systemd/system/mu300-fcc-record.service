@@ -1,0 +1,15 @@
+[Unit]
+Description=Persist and restore qualified MU300 U30 Air FCC model
+DefaultDependencies=no
+After=local-fs.target
+Before=sysinit.target
+ConditionPathExists=/run/mu300/device
+
+[Service]
+Type=simple
+ExecStart=/opt/mu300/bin/mu300-fcc-record
+Restart=no
+UMask=0077
+
+[Install]
+WantedBy=sysinit.target

@@ -1,0 +1,127 @@
+#!/bin/sh
+# U30 Air USB role adapter. Charger registers and OTG boost belong to the
+# bound kernel charger driver; this command only requests its data_role API.
+set -u
+export PATH="$PATH:/opt/mu300/bin:/usr/sbin:/sbin"
+R=${MU300_SYSROOT:-}
+
+die() { echo "mu300-usb: $*" >&2; exit 1; }
+read_value() { cat "$1" 2>/dev/null; }
+device_name() {
+    if [ -s "$R/run/mu300/device" ]; then
+        read_value "$R/run/mu300/device"
+    elif [ -e "$R/proc/device-tree/charger_policy_service" ]; then
+        echo u30air
+    elif [ -z "$R" ] && command -v mu300-device >/dev/null 2>&1; then
+        mu300-device
+    else
+        echo f50
+    fi
+}
+require_u30air() {
+    [ "$(device_name)" = u30air ] ||
+        die "Host is supported only on the battery-powered U30 Air; the F50 USB port is its power input"
+}
+find_native() {
+    count=0
+    NATIVE=
+    for d in "$R"/sys/bus/i2c/devices/*; do
+        [ -e "$d/driver" ] || [ -L "$d/driver" ] || continue
+        driver=$(readlink "$d/driver" 2>/dev/null) || continue
+        [ "${driver##*/}" = sgm41511-native ] || continue
+        count=$((count + 1))
+        NATIVE=$d
+    done
+    [ "$count" -eq 1 ]
+}
+find_role_switch() {
+    count=0
+    ROLE_SWITCH=
+    for r in "$R"/sys/class/usb_role/*/role; do
+        [ -e "$r" ] || continue
+        count=$((count + 1))
+        ROLE_SWITCH=$r
+    done
+    [ "$count" -eq 1 ]
+}
+show_devices() {
+    for d in "$R"/sys/bus/usb/devices/[0-9]*; do
+        [ -r "$d/product" ] || continue
+        case ${d##*/} in *:*) continue ;; esac
+        printf '  device: %s (%s:%s)\n' "$(read_value "$d/product")" \
+            "$(read_value "$d/idVendor")" "$(read_value "$d/idProduct")"
+    done
+}
+wait_role() {
+    expected=$1
+    i=0
+    while [ "$i" -lt 30 ]; do
+        [ "$(read_value "$ROLE")" = "$expected" ] && return 0
+        i=$((i + 1))
+        sleep 0.1
+    done
+    return 1
+}
+write_role() {
+    requested=$1
+    printf '%s\n' "$requested" > "$ROLE" ||
+        die "kernel refused role request (Host requires external power and boost off)"
+    if [ "$requested" = auto ]; then
+        policy=$(read_value "$NATIVE/host_policy") || die "cannot read automatic policy state"
+        case $policy in auto*) return 0 ;; esac
+        die "kernel did not accept automatic policy request"
+    fi
+    wait_role "$requested" ||
+        die "role transition was not confirmed; check dmesg"
+}
+
+case ${1:-status} in
+    boot)
+        # Probe already forces boost off. Reassert Device through the kernel
+        # only when the native U30 driver is present; never access I2C directly.
+        if find_native; then ROLE=$NATIVE/data_role; write_role device; fi
+        exit 0
+        ;;
+    status)
+        if find_native; then
+            ROLE=$NATIVE/data_role
+            echo "role: $(read_value "$ROLE" || echo unavailable)"
+            echo "policy: $(read_value "$NATIVE/host_policy" || echo unavailable)"
+            boost=$(read_value "$NATIVE/otg_boost" || echo unavailable)
+            [ "$boost" = 0 ] && boost=off
+            [ "$boost" = 1 ] && boost=on
+            echo "5 V out (OTG boost): $boost"
+            echo "external input: $(read_value "$NATIVE/input_power_good" || echo unavailable)"
+            echo "charger: $(read_value "$R/sys/class/power_supply/sgm41511-charger/status" || echo unavailable)"
+        else
+            if find_role_switch; then echo "role: $(read_value "$ROLE_SWITCH" || echo unavailable)"; else echo "role: unavailable"; fi
+            echo "native SGM41511 driver: not bound (Host disabled)"
+        fi
+        show_devices
+        ;;
+    host|host-external|auto)
+        [ "$(id -u)" = 0 ] || die "run as root (sudo mu300-usb host)"
+        require_u30air
+        find_native || die "native SGM41511 driver not bound; refusing Host (use the matching 7.2 U30 Air kernel)"
+        input=$(read_value "$NATIVE/input_power_good") || die "cannot read external-input status"
+        [ "$input" = 1 ] || die "Host requires valid external input; OTG boost remains off"
+        boost=$(read_value "$NATIVE/otg_boost") || die "cannot read OTG boost state"
+        [ "$boost" = 0 ] || die "OTG boost is on; refusing Host"
+        ROLE=$NATIVE/data_role
+        case ${1:-host} in
+            auto) write_role auto; echo "Automatic policy explicitly enabled; check status after enumeration" ;;
+            *) write_role host; echo "USB Host selected with external input; charger remains kernel-managed" ;;
+        esac
+        ;;
+    device)
+        [ "$(id -u)" = 0 ] || die "run as root (sudo mu300-usb device)"
+        require_u30air
+        find_native || die "native SGM41511 driver not bound; refusing role change (use the matching 7.2 U30 Air kernel)"
+        ROLE=$NATIVE/data_role
+        write_role device
+        boost=$(read_value "$NATIVE/otg_boost") || die "cannot read OTG boost state"
+        [ "$boost" = 0 ] || die "kernel did not confirm OTG boost off"
+        echo "USB Device selected"
+        ;;
+    *) echo "usage: $0 {status|host|device|auto|boot}" >&2; exit 2 ;;
+esac

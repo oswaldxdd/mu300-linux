@@ -1,0 +1,60 @@
+{
+  "release_id": "v2026.10.15-charge2",
+  "packaged_on": "2026-10-11",
+  "upstream_tag": "v2026.10.15",
+  "upstream_commit": "52093b28c9c3e0280b1a1be6f0d4b5437a6053a1",
+  "integration_source_base": "6a664c379f5adf466ac017f898f19148c96ef404",
+  "kernel_release": "7.2.9-u30air-charge2",
+  "module_count": 379,
+  "kernel_source_sha256": "b4c5dfbe51a364a6c7f03869200f88c8e1f77403539005f14b7fc6bc91b8d8ba",
+  "input_sha256": {
+    "mu300-openwrt-luci-rootfs.tar.gz": "8ff2008f00b891c021b139e5f2cd225f54718957176a827c677c055560229eff",
+    "mu300-kernel.tar.gz": "2f38180a0f417fbc0343e6773e8e458edbbe5293143fbab938952e516c6b58eb",
+    "mu300-update": "1253c7cbdd627254f006539abb89aa072c6c47ccc0b6ccf06218b0cc812ad379"
+  },
+  "candidate_kernel_sha256": "0b5c32f83858c5323bd484e577ac37159601a373db7031ac76b60623f9b077b5",
+  "typec_import": {
+    "source": "verified prior Linux 7.2.8-u30air-native14 build tree",
+    "source_kernel": "7.2.8-u30air-native14",
+    "purpose": "Restore sink-only 5V Type-C/PD source qualification omitted from the 7.2.9 integration",
+    "sha256": {
+      "drivers/usb/typec/sc27xx_typec.c": "3885b95ebb973477b11c5068867473933a8a6418032160aa31813c9c5dae72d0",
+      "drivers/usb/typec/tcpm/sc27xx_pd.c": "abdced03eb9f96eccb4b615f2f4c50e967d8f9a405cd6ce2c0343dcf2d2973ee",
+      "drivers/usb/typec/tcpm/sprd_tcpm.c": "63c9f640c0ee7cd6157919cb23b05985d25bbc06a08d8113413f389940290908",
+      "include/linux/usb/sprd_typec.h": "372cf00c04128d71a80a2f64ee1ef680ed33a7b2d0c6b434a10573ed70a4ad08",
+      "include/linux/usb/sprd_tcpm.h": "fe128213f23ecbe29a670a4207778b27b6820fd2ce9c90012f4e6a5809cb3ecc",
+      "include/linux/usb/sprd_pd.h": "a21be88b8ea9bf5be27019086ceb2468bfaef740e708aa6110d7f3a2929d6de0",
+      "include/linux/usb/sprd_pd_ado.h": "dceb1e14b8bbecf9661b3eeff4957ef428a30e5a12772d9ba07570e4deb00842",
+      "include/linux/usb/sprd_pd_bdo.h": "d2f174968f2e8c5620b73085cad66d1333890862fbdcadc31e0cdf4a205989a7",
+      "include/linux/usb/sprd_pd_ext_sdb.h": "8e349dbc7e5c59396cd94fae04843c5f8519098e8de0e70d8cf08e44b7115b9f",
+      "include/linux/usb/sprd_pd_vdo.h": "78ab2d35a31a60fa8cd2f889fc748c5d724d70e369c624e9b150dbe195353edf",
+      "include/linux/usb/sprd_commonphy.h": "96e723b326fe91429e29f57dabd802ca8bda99c4d90780132af668b4d436129a"
+    },
+    "not_a_hardware_validation_of_this_new_build": true
+  },
+  "validation": {
+    "candidate_kernel_booted": true,
+    "host_charging_and_rtl8153": true,
+    "new_archive_wipe_installed": false,
+    "fcc_whole_cycle_accuracy": false,
+    "long_term_stability": false,
+    "charge_limit_0_pause": true,
+    "charge_limit_100_resume": true,
+    "charge_limit_80_hold_with_host": true,
+    "charge_limit_service_restart_persisted": true,
+    "charge_limit_natural_recovery_threshold_tested": false,
+    "regmap_debugfs_panic_fixed": false,
+    "prior_charge1_wifi_authenticated_and_luci_http": true
+  },
+  "charge_limit": {
+    "range_percent": [
+      0,
+      100
+    ],
+    "new_install_default_percent": 100,
+    "zero_pauses_battery_only": true,
+    "resume_delta_percent": 5,
+    "minimum_resume_percent": 0,
+    "native_jeita_retained": true
+  }
+}

@@ -1,0 +1,79 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+# Persist only kernel-qualified FCC models; restore once in the driver's boot window.
+umask 077
+export PATH=/opt/mu300/bin:/opt/mu300/busybox-bin:/usr/sbin:/usr/bin:/sbin:/bin
+R=${MU300_SYSROOT:-}
+DISK=${MU300_DISK:-/mnt/mu300-disk}
+. /opt/mu300/lib/fcc-record.sh || exit 1
+. /opt/mu300/lib/fcc-device.sh || exit 1
+
+log() { logger -t mu300-fcc-record "$*"; }
+device=$(/opt/mu300/bin/mu300-device 2>/dev/null) || exit 1
+[ "$device" = u30air ] || exit 0
+case $(uname -r) in 7.2.*) ;; *) exit 0 ;; esac
+
+EMMC=$(fcc_find_emmc "$R") || { log 'cannot resolve a unique non-removable eMMC'; exit 1; }
+SLOT=$(fcc_active_slot "$R") || { log 'active Linux slot is missing or inconsistent'; exit 1; }
+DTBO=$(fcc_find_dtbo "$R" "$EMMC" "$SLOT") || { log 'cannot resolve the active slot DTBO'; exit 1; }
+FGU=$(readlink -f "$R/sys/class/power_supply/sc27xx-fgu/device") || exit 1
+CID=$EMMC/device/cid
+STORE=$R$DISK/.mu300-fcc
+RECORD=$STORE/learned-v1
+DTBO_PATH=$R$DTBO
+[ -r "$CID" ] && [ -r "$FGU/fcc_status" ] && [ -w "$FGU/fcc_restore" ] || exit 1
+fcc_validate_store_mount "$R" "$DISK" "$EMMC" || {
+    log 'persistent disk is not the root device selected at boot'; exit 1;
+}
+[ -b "$DTBO_PATH" ] || { log 'active DTBO is not a block device'; exit 1; }
+
+# Never log raw eMMC identity. Binding covers the device, the slot actually
+# booted, the active DTBO image, design capacity, and calibrated ADC gain.
+identity=$(sha256sum "$CID") || exit 1
+identity=${identity%% *}
+dtbo_hash=$(sha256sum "$DTBO_PATH") || exit 1
+dtbo_hash=${dtbo_hash%% *}
+fcc_hash "$identity" && fcc_hash "$dtbo_hash" || exit 1
+
+status_read() {
+    model= design= gain= seq=
+    local pair
+    for pair in $(cat "$FGU/fcc_status"); do
+        case "$pair" in
+            model_mah=*) model=${pair#*=};;
+            design_mah=*) design=${pair#*=};;
+            gain=*) gain=${pair#*=};;
+            sequence=*) seq=${pair#*=};;
+        esac
+    done
+    fcc_model_valid "$model" "$design" "$gain" && fcc_uint "$seq"
+}
+
+[ ! -L "$STORE" ] || exit 1
+mkdir -p "$STORE" && chmod 700 "$STORE" || exit 1
+status_read || exit 1
+if [ -e "$RECORD" ] || [ -L "$RECORD" ]; then
+    if restored=$(fcc_record_read "$RECORD" "$identity" "$dtbo_hash" "$design" "$gain"); then
+        if fcc_restore_write "$FGU/fcc_restore" "$restored" "$design" "$gain"; then
+            log "restored learned capacity ${restored}mAh for slot $SLOT"
+        else
+            log 'kernel rejected early capacity restore'; exit 1
+        fi
+    else
+        log 'capacity record invalid or belongs to another device, slot, DTBO, or calibration; retained default'
+    fi
+fi
+
+last_seq=0
+while sleep 10; do
+    status_read || { log 'invalid kernel capacity status'; exit 1; }
+    # The driver increments sequence only after FCC qualification and commit.
+    if [ "$seq" -gt "$last_seq" ]; then
+        if fcc_record_write "$RECORD" "$identity" "$dtbo_hash" "$design" "$gain" "$model"; then
+            last_seq=$seq
+            log "saved learned capacity ${model}mAh sequence=$seq slot=$SLOT"
+        else
+            log 'capacity record write failed; retrying without changing kernel model'
+        fi
+    fi
+done

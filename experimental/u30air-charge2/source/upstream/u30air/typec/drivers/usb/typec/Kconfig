@@ -1,0 +1,8 @@
+config USB_SC27XX_TYPEC
+	tristate "Unisoc SC27xx/UMP96xx USB Type-C controller"
+	depends on TYPEC && EXTCON && NVMEM
+	depends on MFD_SC27XX_PMIC || COMPILE_TEST
+	depends on SPRD_TYPEC_TCPM
+	help
+	  Type-C attach detection and extcon role reporting for Unisoc PMICs,
+	  including the UMP9620 used by the ZTE U30 Air.
