@@ -16,11 +16,16 @@
     cannot hold every name the Android subset contains (the property area is a set of files called
     u:object_r:<context>:s0), so the archive from the device is kept beside it as work\android-subset\
     windows-source.tar.gz, and the tools that build the images take the subset from that file.
-    Only the Linux region, boot_b and 32 bytes of misc are written; boot_a, the GPT and userdata stay untouched.
+    Only the Linux region (or the SD card), boot_b and 32 bytes of misc are written; boot_a, the GPT and userdata
+    stay untouched. With an SD card in the slot it asks where the Linux filesystem goes ($env:MU300_STORAGE =
+    'internal' or 'sd' answers without asking).
 #>
 [CmdletBinding()]
 param(
     [switch]$Check,
+    [switch]$VerifyOnly,
+    [switch]$U30AirHostPackage,
+    [string]$ReleaseDirectory = '',
     [string]$Release = '',   # empty: the newest published release
     [string]$ReleaseUrl,
     [string]$Repo = 'dikeckaan/mu300-linux',
@@ -126,7 +131,7 @@ function FindAdb {
 # for install.sh): a git clone is fast-forwarded to GitHub's main, a downloaded zip gets the files that differ,
 # with the commit checked kept in .mu300-source. Without GitHub the local copy runs; nothing here stops an install.
 function SelfUpdate {
-    if ($NoSelfUpdate -or $env:MU300_NO_SELF_UPDATE -or $env:MU300_SELF_UPDATED) { return $false }
+    if ($NoSelfUpdate -or $U30AirHostPackage -or $env:MU300_NO_SELF_UPDATE -or $env:MU300_SELF_UPDATED) { return $false }
     $ProgressPreference = 'SilentlyContinue'   # Windows PowerShell 5.1 downloads many times slower with the bar
     try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch { }
     try { $remote = (Invoke-RestMethod "https://api.github.com/repos/$Repo/commits/main" -UseBasicParsing -TimeoutSec 15).sha } catch { $remote = $null }
@@ -294,6 +299,7 @@ function InstallPython {
 function Python { param([Parameter(ValueFromRemainingArguments = $true)][string[]]$PyArgs)
     if (-not $script:PyExe) {
         $script:PyExe = FindPython
+        if (-not $script:PyExe -and $U30AirHostPackage) { Die 'offline package requires Python 3.8 or newer; install it before running this installer' }
         if (-not $script:PyExe) { InstallPython; $script:PyExe = FindPython }
         if (-not $script:PyExe) { Die (T 'Python 3 not found (install it from python.org or the Microsoft Store)') }
     }
@@ -341,11 +347,32 @@ function PushUnix($src, $dst) {
 }
 
 # first of all, make this the newest installer (it runs the updated one and ends when it changed)
+if ($VerifyOnly -and -not $U30AirHostPackage) { Die '-VerifyOnly is only supported with -U30AirHostPackage and a local -ReleaseDirectory' }
 if (SelfUpdate) {
     $env:MU300_SELF_UPDATED = '1'
     $PSBoundParameters['Lang'] = $Lang
     & $PSCommandPath @PSBoundParameters
     exit $LASTEXITCODE
+}
+
+if ($U30AirHostPackage) {
+    if (-not $NoSelfUpdate) { Die 'the U30 Air offline package requires -NoSelfUpdate' }
+    if ($ReleaseUrl) { Die 'the U30 Air offline package does not accept a network release URL' }
+    if (-not $ReleaseDirectory) { Die 'the U30 Air offline package requires -ReleaseDirectory' }
+    $ReleaseDirectory = [IO.Path]::GetFullPath($ReleaseDirectory)
+    $sumPath = Join-Path $ReleaseDirectory 'SHA256SUMS'
+    if (-not (Test-Path -LiteralPath $sumPath -PathType Leaf)) { Die 'local SHA256SUMS is missing' }
+    $localSums = @{}
+    foreach ($line in Get-Content -LiteralPath $sumPath) {
+        if ($line -match '^([0-9a-fA-F]{64})\s+\*?([^\s]+)$') { $localSums[$Matches[2]] = $Matches[1].ToLowerInvariant() }
+    }
+    foreach ($asset in @('mu300-kernel.tar.gz','mu300-kernel-7.2.tar.gz','mu300-openwrt-luci-rootfs.tar.gz')) {
+        $assetPath = Join-Path $ReleaseDirectory $asset
+        if (-not $localSums.ContainsKey($asset) -or -not (Test-Path -LiteralPath $assetPath -PathType Leaf)) { Die "required offline asset is missing: $asset" }
+        if ((Get-FileHash -LiteralPath $assetPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne $localSums[$asset]) { Die "local asset checksum mismatch: $asset" }
+    }
+    if ($VerifyOnly) { Write-Host 'Offline assets verified.'; exit 0 }
+    $Release = 'v2026.10.15'
 }
 
 Say (T 'Checking host tools and device')
@@ -356,6 +383,7 @@ if ($LASTEXITCODE -ne 0) { Die (T 'Python 3.8 or newer is required') }
 if (-not $Check) {
     Quiet { Python -c 'import lz4.block' } | Out-Null
     if ($LASTEXITCODE -ne 0) {
+        if ($U30AirHostPackage) { Die 'offline package requires the Python lz4 module; install it before running this installer' }
         # a fresh Python has no lz4, and "pip install lz4" often went to another Python than the one found here
         # (the Store alias, py.exe): install it into this very interpreter, for this user only
         Write-Host ('  ' + (T 'installing the lz4 Python module (pip install --user lz4)'))
@@ -371,6 +399,7 @@ $target = @((Quiet { adb devices -l }) | Where-Object { $_ -match '^\S+\s+device
 $linuxFirst = (-not $env:ANDROID_SERIAL) -and $target.Count -eq 0 -and (LinuxRunning)
 if (-not $linuxFirst) { SelectDevice }
 if ($linuxFirst -or (AdbState) -notmatch 'device') {
+    if ($U30AirHostPackage) { Die 'start this offline package from rooted Android slot A; when Linux is running, use the device recovery command to return to Android and rerun the installer' }
     # the device may be running MU300 Linux right now: then only SSH on the USB network answers
     $linux = $linuxFirst -or (LinuxRunning)
     if (-not $linux) { Die (T 'no adb device (boot Android, enable USB debugging)') }
@@ -414,6 +443,7 @@ if ($model -match 'U30Air|U30_Air|U30 Air') {
 } elseif ($model -notmatch 'MU300|F50|mu300') {
     if ((Ask (T 'This does not look like a ZTE F50/MU300 or U30 Air. Continue anyway? (yes/no)') 'no') -ne 'yes') { exit 1 }
 }
+if ($U30AirHostPackage -and $DEVICE -ne 'u30air') { Die 'this firmware package is restricted to the ZTE U30 Air' }
 if ((SuDo 'getprop ro.boot.slot_suffix') -ne '_a') { Die (T 'Android must be running from slot a') }
 
 Say (T 'Locating free eMMC space after the last partition')
@@ -422,25 +452,139 @@ if ($parts.Count -ne 2) { Die (T 'could not read the partition table from the de
 [int64]$lastEnd = $parts[0]; [int64]$disk = $parts[1]
 [int64]$start = [math]::Floor($lastEnd / 4096 + 1) * 4096
 [int64]$end = [math]::Floor(($disk - 34) / 4096 - 1) * 4096
+# A partition table that ends at the end of the eMMC (issue #65): the boundaries cross, and a negative size is not
+# a region but an empty one (the card is offered instead), whose start is never read (RegionOnDisk).
+if ($end -le $start) { $end = $start }
 [int64]$OFF = $start * 512
 [int64]$SIZE = ($end - $start) * 512
 function Gib([int64]$b) { '{0:N1} GiB' -f ($b / 1GB) }
+# Where the Linux filesystem goes (tools/storage.sh's choose_storage). The caller asks; an empty answer is the
+# default (StorageDefault): internal storage; the card when there is too little room inside (the way that needs no
+# repartitioning) or when it holds an installation already (that is what the device starts).
+function StorageDefault([int64]$InternalBytes, [string]$SdState) {
+    if ($InternalBytes -lt 700MB -or $SdState -eq 'yes') { return 'sd' } else { return 'internal' }
+}
+function ChooseStorage([string]$SdDev, [int64]$SdBytes, [int64]$InternalBytes, [string]$Forced, [string]$Answer, [string]$SdState) {
+    if ($Forced -eq 'internal') { return 'internal' }
+    if ($Forced -eq 'sd') { if (-not $SdDev) { throw 'MU300_STORAGE=sd, but there is no usable SD card in the device' }; return 'sd' }
+    if ($Forced) { throw 'MU300_STORAGE must be internal or sd' }
+    if (-not $SdDev) { return 'internal' }
+    if (-not $Answer) { return (StorageDefault $InternalBytes $SdState) }
+    if ($Answer -eq 'internal' -or $Answer -eq 'sd') { return $Answer }
+    throw 'invalid choice'
+}
+# The systems a choice stands for (1 Ubuntu, 2 OpenWrt, 3 both), the way install.sh's choose_systems has them. OpenWrt is
+# plain (1) or with the MU300 control panel (2, "openwrt-luci" then stands in the list instead of "openwrt"); $Preset
+# is MU300_OPENWRT (plain|luci) and answers without asking, an empty $Which is the default (plain).
+function ChooseOpenWrt([string[]]$Oses, [string]$Preset, [string]$Which) {
+    if ($Preset) {
+        if ($Preset -eq 'plain') { $Which = '1' } elseif ($Preset -eq 'luci') { $Which = '2' } else { throw 'MU300_OPENWRT must be plain or luci' }
+    } elseif (-not $Which) { $Which = '1' }
+    if ($Which -ne '1' -and $Which -ne '2') { throw 'invalid choice' }
+    if ($Which -eq '2') { return @($Oses | ForEach-Object { if ($_ -eq 'openwrt') { 'openwrt-luci' } else { $_ } }) }
+    return @($Oses)
+}
+# boot/init starts a mu300sd card before anything on the eMMC: an internal installation made while such a card is
+# in the slot never starts, so that choice needs the typed word (storage.sh's internal_over_card)
+function InternalOverCard([string]$Where, [string]$SdState) { return ($Where -eq 'internal' -and $SdState -eq 'yes') }
+# What the card holds, from the ext4 magic and label of its superblock: yes for a mu300sd filesystem, foreign for
+# any other ext4, labelled or not (someone's data: android-install.sh refuses to format it), no for anything else
+function SdState([string]$Magic, [string]$Label) {
+    if ($Magic -ne '53ef') { return 'no' }
+    if ($Label.Trim() -eq 'mu300sd') { return 'yes' }
+    return 'foreign'
+}
+# A card installation needs a kernel that reads the card (tools/storage.sh's sd_kernel_ok): the mainline bundles
+# that do say so in ./features; older ones gate the SD host off and the device would never find its card.
+function SdKernelOk([int]$SdMode, [string]$Dir) {
+    if ($SdMode -ne 1) { return $true }
+    $f = Join-Path $Dir 'features'
+    return [bool]((Test-Path $f) -and (@(Get-Content $f) -contains 'sdcard'))
+}
+# mu300-install.env, what android-install.sh is told (tools/storage.sh's write_install_env writes the same text).
+# OFF/SIZE and their sectors are always the internal region: in SD mode SIZE is the card's by now and INT_SIZE keeps
+# the region's, which the root-on-sd marker needs; the card's own size is read on the device.
+function InstallEnvText($v) {
+    [int64]$rs = if ([int]$v.SD_MODE -eq 1) { $v.INT_SIZE } else { $v.SIZE }
+    [int64]$off = $v.OFF
+    $lines = @("OFF=$off", "SIZE=$rs", "OFF_S=$([math]::Floor($off / 512))", "SIZE_S=$([math]::Floor($rs / 512))",
+        "FORMAT=$($v.FORMAT)", "OSES=`"$(@($v.OSES) -join ' ')`"", "WIPE_LEGACY=$($v.WIPE_LEGACY)", "UPDATE=$($v.UPDATE)",
+        "BOOT_OS=$($v.BOOT_OS)", "DEFAULT_LINUX=$($v.DEFAULT_LINUX)", "BOOT_ATTEMPTS=$($v.BOOT_ATTEMPTS)",
+        "IMPORT_HOTSPOT=$($v.IMPORT_HOTSPOT)", "KERNEL=$($v.KERNEL)", "SD_MODE=$($v.SD_MODE)", "SD_DEV=$($v.SD_DEV)",
+        "INTERNAL_EXISTS=$($v.INTERNAL_EXISTS)", "PWHASH='$($v.PWHASH)'")
+    return (($lines -join "`n") + "`n")
+}
+function SdExisting {
+    $m = (SuDo "dd if=$SD_DEV bs=1 skip=1080 count=2 2>/dev/null | od -An -tx1") -replace '\s', ''
+    $l = (SuDo "dd if=$SD_DEV bs=1 skip=1144 count=16 2>/dev/null") -replace '\0', ''
+    SdState $m $l
+}
 # What each choice needs: the installed systems measure ~320 MiB (OpenWrt) and ~580 MiB (Ubuntu), and an update
 # keeps the previous one as <os>.old while the new one is unpacked, so allow for two of each plus working room.
 [int64]$NEED_OPENWRT = 800MB; [int64]$NEED_UBUNTU = 1600MB; [int64]$NEED_BOTH = 2400MB
 Write-Host (T 'eMMC: {1} ({2} sectors), partitions end at {3} (sector {4}), free after them: {5}' (Gib ($disk * 512)) $disk (Gib ($lastEnd * 512)) $lastEnd (Gib $SIZE))
+# The SD card as the other place for it (boot/init looks there first): "<block device> <512-byte sectors> <type>"
+# of the first mmc disk that is not the eMMC - its first partition when it has one, the whole card otherwise. The
+# type keeps a second eMMC or an SDIO function out. Single quotes only (see the data check below).
+$SD_DEV = ''; [int64]$SD_BYTES = 0
+$sd = @((SuDo 'for b in /sys/block/mmcblk[1-9]; do [ -e $b/device/type ] || continue; n=${b##*/}; if [ -e $b/${n}p1 ]; then echo /dev/block/${n}p1 $(cat $b/${n}p1/size) $(cat $b/device/type); else echo /dev/block/$n $(cat $b/size) $(cat $b/device/type); fi; break; done').Trim() -split '\s+')
+if ($sd.Count -eq 3 -and $sd[2] -eq 'SD' -and $sd[1] -match '^[0-9]+$') {
+    if ([int64]$sd[1] * 512 -ge 700MB) { $SD_DEV = $sd[0]; $SD_BYTES = [int64]$sd[1] * 512 }
+    else { Write-Host (T 'SD card present but smaller than 700 MiB; not used') }
+}
+$SD_MODE = 0; $sdEx = 'no'
+if ($Check) {
+    if ($SD_DEV) {
+        $sdEx = SdExisting
+        Write-Host (T 'SD card: {1}, {2}, existing mu300sd filesystem: {3}' $SD_DEV (Gib $SD_BYTES) (T $(if ($sdEx -eq 'yes') { 'yes' } else { 'no' })))
+        if ($sdEx -eq 'foreign') { Write-Host ('  ' + (T 'the SD card holds another Linux (ext4) filesystem; the installer will not format it')) }
+    }
+} else {
+    $ans = ''
+    if ($SD_DEV) { $sdEx = SdExisting }
+    if ($SD_DEV -and -not $env:MU300_STORAGE) {
+        $ans = Ask (T 'Where should the Linux filesystem go: internal storage or the SD card ({1}, {2})? (internal/sd)' $SD_DEV (Gib $SD_BYTES)) (StorageDefault $SIZE $sdEx)
+    }
+    try { $where = ChooseStorage $SD_DEV $SD_BYTES $SIZE ([string]$env:MU300_STORAGE) $ans $sdEx }
+    catch { Die (T $_.Exception.Message) }
+    if (InternalOverCard $where $sdEx) {
+        Write-Host (T 'The SD card ({1}) holds a Linux installation (mu300sd), and the device always starts that one first: an installation to internal storage does not start while this card is in the slot.' $SD_DEV)
+        Write-Host (T 'Take the card out before the device restarts, or erase its installation first with the uninstaller.')
+        if ((Ask (T 'Type internal to install to internal storage anyway') 'no') -ne 'internal') { Die (T 'cancelled') }
+    }
+    if ($where -eq 'sd') {
+        $SD_MODE = 1
+        # Another Linux filesystem on the card may be someone's data, and the device refuses to format it. Say so
+        # now, not after the password, the download and the build.
+        if ($sdEx -eq 'foreign') {
+            Die ((T 'the SD card ({1}) holds another Linux (ext4) filesystem, and the installer never formats one that is not its own (mu300sd).' $SD_DEV) + "`n" + (T 'Copy off what you need and format the card elsewhere, use another card, or install to internal storage (MU300_STORAGE=internal).'))
+        }
+    }
+}
 # Smaller eMMC variants leave less room behind userdata, and how much is needed depends on the choice further
 # down - OpenWrt alone fits in a few hundred megabytes. So refuse only what cannot hold anything at all, and
 # check the real requirement once the systems are known. There is nowhere else to put this region on these
 # devices: userdata is metadata-encrypted (dm-default-key), so an image file inside it cannot be read from
 # Linux, and the spare-looking blackbox and fulldumpdb partitions are written by the firmware itself.
-if ($SIZE -lt 700MB) {
+if ($SD_MODE -eq 0 -and $SIZE -lt 700MB) {
+    # -Check with a card: a real run offers the card (as the default) and needs no repartitioning
+    if ($Check -and $SD_DEV -and $sdEx -ne 'foreign') {
+        Write-Host (T 'result: {1}' (T 'too little free eMMC space for Linux; the installer will offer the SD card instead (no repartitioning needed)'))
+        Write-Host ("`n" + (T 'Nothing was written. Android version: {1}' (SuDo 'getprop ro.build.display.id')))
+        exit 0
+    }
     $mib = [int64]($SIZE / 1MB)
     Die ((T 'only {1} MiB of free space after the last partition: this device has a different layout, nothing is changed.' $mib) + "`n" + (T 'Please report the numbers above (eMMC size and where the partitions end); they identify the variant.'))
 }
 
+# Whether the ext4 superblock of a region at BYTES (its second KiB) lies on the eMMC. A read past the end of the disk
+# never returns on this device: the dd spins on one core, survives kill -9 and heats the SoC until a reboot (issues
+# #43, #52, #65: a 32 GB eMMC whose table ends at its end puts the region's start at the disk's end, and the fixed
+# offset of the first releases lies beyond a 32 GB eMMC altogether).
+function RegionOnDisk([int64]$bytes) { [math]::Floor(($bytes + 2048) / 512) -le $disk }
 $existing = 'no'
 foreach ($cand in @($OFF, 27762098176)) {
+    if (-not (RegionOnDisk $cand)) { continue }
     $m = (SuDo "dd if=/dev/block/mmcblk0 bs=1 skip=$($cand + 1080) count=2 2>/dev/null | od -An -tx1") -replace '\s', ''
     $l = (SuDo "dd if=/dev/block/mmcblk0 bs=1 skip=$($cand + 1144) count=16 2>/dev/null") -replace '\0', ''
     if ($m -eq '53ef' -and $l.Trim() -eq 'mu300root') {
@@ -449,9 +593,15 @@ foreach ($cand in @($OFF, 27762098176)) {
     }
 }
 Write-Host (T 'Linux region: offset {1}, {2}, existing mu300root filesystem: {3}' $OFF (Gib $SIZE) (T $existing))
+$INTERNAL_EXISTS = $(if ($existing -eq 'yes') { 1 } else { 0 }); [int64]$INT_SIZE = 0
+if ($SD_MODE -eq 1) {
+    # from here on SIZE and existing describe the card; OFF and INT_SIZE keep the internal region for the marker
+    $INT_SIZE = $SIZE; $SIZE = $SD_BYTES; $existing = SdExisting
+    Write-Host (T 'Linux filesystem: SD card {1}, {2}, existing mu300sd filesystem: {3}' $SD_DEV (Gib $SIZE) (T $existing))
+}
 
 $dirty = 0
-if ($existing -eq 'no') {
+if ($SD_MODE -eq 0 -and $existing -eq 'no') {
     $step = [int64]($SIZE / 1MB / 16)
     $probe = (0..15 | ForEach-Object { [int64]($OFF / 1MB) + $_ * $step }) -join ' '
     # Empty is 0x00 or 0xFF (what an eMMC reads back after an erase). No double quotes in the command: Windows
@@ -467,6 +617,8 @@ if ($existing -eq 'no') {
 }
 if ($existing -eq 'yes') {
     $verdict = T 'OK: a MU300 Linux installation is already present (it can be kept or replaced)'
+} elseif ($SD_MODE -eq 1) {
+    $verdict = T 'OK: the SD card will be formatted; everything on it is erased'
 } elseif ($dirty -gt 0) {
     $verdict = T 'WARNING: the unpartitioned space is not empty; it may be used by this firmware. Installing overwrites it'
 } elseif ($SIZE -ge 20GB) {
@@ -493,11 +645,26 @@ if ($SIZE -lt $NEED_BOTH) {
     $fits = if ($SIZE -ge $NEED_UBUNTU) { T 'one system fits, not both' } else { T 'only OpenWrt fits' }
     Write-Host ('  ' + (T '(this device has {1}: {2})' (Gib $SIZE) $fits))
 }
-switch (Ask (T 'Choice') '3') {
-    '1' { $OSES = @('ubuntu') }
-    '2' { $OSES = @('openwrt') }
-    '3' { $OSES = @('ubuntu', 'openwrt') }
-    default { Die (T 'invalid choice') }
+if ($U30AirHostPackage) { $OSES = @('openwrt') }
+else {
+    switch (Ask (T 'Choice') '3') {
+        '1' { $OSES = @('ubuntu') }
+        '2' { $OSES = @('openwrt') }
+        '3' { $OSES = @('ubuntu', 'openwrt') }
+        default { Die (T 'invalid choice') }
+    }
+}
+if ($OSES -contains 'openwrt') {
+    $owPreset = if ($U30AirHostPackage) { 'luci' } else { [string]$env:MU300_OPENWRT }
+    if ($owPreset -and $owPreset -notin 'plain', 'luci') { Die (T 'MU300_OPENWRT must be plain or luci') }
+    $owAnswer = ''
+    if (-not $owPreset) {
+        Say (T 'Which OpenWrt?')
+        Write-Host ('  ' + (T '1) OpenWrt {1}: the standard LuCI web interface' '25.12.5'))
+        Write-Host ('  ' + (T '2) OpenWrt {1} with the MU300 control panel: dashboard, cellular locks, SMS, AT terminal, USB modes (by kanoqwq)' '25.12.5'))
+        $owAnswer = Ask (T 'Choice') '1'
+    }
+    try { $OSES = @(ChooseOpenWrt $OSES $owPreset $owAnswer) } catch { Die (T 'invalid choice') }
 }
 $need = if ($OSES.Count -eq 2) { $NEED_BOTH } elseif ($OSES[0] -eq 'ubuntu') { $NEED_UBUNTU } else { $NEED_OPENWRT }
 if ($SIZE -lt $need) {
@@ -506,8 +673,8 @@ if ($SIZE -lt $need) {
 }
 $BOOT_OS = $OSES[0]
 if ($OSES.Count -eq 2) {
-    $BOOT_OS = Ask (T 'Which one should boot (ubuntu/openwrt)') 'ubuntu'
-    if ($BOOT_OS -notin @('ubuntu', 'openwrt')) { Die (T 'invalid system') }
+    $BOOT_OS = Ask (T 'Which one should boot ({1})' ($OSES -join '/')) $BOOT_OS
+    if ($BOOT_OS -notin $OSES) { Die (T 'invalid system') }
 }
 $UBUNTU = '24.04'
 if ($OSES -contains 'ubuntu') {
@@ -543,8 +710,13 @@ if ($DEFAULT_LINUX -eq 1) {
     if ($BOOT_ATTEMPTS -notmatch '^[1-6]$') { Die (T 'enter a number from 1 to 6') }
 }
 $IMPORT_HOTSPOT = if ((Ask (T "Copy Android's hotspot name and password to Linux? (yes/no)") 'yes') -eq 'yes') { 1 } else { 0 }
-$gpu = Ask (T 'Include the Mali GPU (OpenCL) userspace (~90 MiB)? (yes/no)') 'yes'
-$KERNEL = $null
+$gpu = if ($U30AirHostPackage) { 'no' } else { Ask (T 'Include the Mali GPU (OpenCL) userspace (~90 MiB)? (yes/no)') 'yes' }
+# the VPN engines are not part of the systems: an extra that goes onto the Linux partition only when wanted
+Write-Host ('  ' + (T 'The VPN (mu300-vpn) needs the vpn extra: Xray and sing-box. It can also be added later on the device:'))
+Write-Host '    sudo mu300-extra install vpn'
+$vx = if ($U30AirHostPackage) { 'no' } else { Ask (T 'Install the VPN extra (about 40 MB more to download, 120 MB on the device)? (yes/no)') 'no' }
+$EXTRA_VPN = $null
+$KERNEL = if ($U30AirHostPackage) { '7.2' } else { $null }
 Say (T 'Which kernel?')
 Write-Host ('  ' + (T "1) 5.4   Unisoc's vendor kernel (Android 12 base): the longest tested, everything this project supports"))
 Write-Host ('  ' + (T '2) 6.18  mainline Linux, current long-term (LTS) release: newer drivers and security fixes, the same'))
@@ -580,6 +752,9 @@ if ($existing -eq 'no') {
     }
     if ($FORMAT -eq 0 -and $OSES -contains 'ubuntu') { $WIPE_LEGACY = 1 }
 }
+if ($SD_MODE -eq 1 -and $FORMAT -eq 1) {
+    if ((Ask (T 'Everything on the SD card ({1}, {2}) will be erased. Type ERASE to continue' $SD_DEV (Gib $SIZE)) 'no') -ne 'ERASE') { Die (T 'cancelled') }
+}
 if ($script:AnswerQueue) {
     $p1 = NextAnswer (T 'Password for the "ubuntu" user (Ubuntu) and "root" (OpenWrt)') -Secret
     $p2 = NextAnswer (T 'Repeat') -Secret
@@ -593,9 +768,40 @@ if ($p1 -ne $p2 -or $p1.Length -lt 6) { Die (T 'passwords differ or are shorter 
 
 New-Item -ItemType Directory -Force -Path "$Work\dumps", "$Work\firmware" | Out-Null
 Say (T 'Pulling device data into {1} (stays on this computer)' $Work)
+foreach ($stale in 'boot_a.img','boot_b.img','misc-head.bin','misc.full.bin') { Remove-Item -LiteralPath (Join-Path "$Work\dumps" $stale) -Force -ErrorAction SilentlyContinue }
 SuDoToFile 'cat /dev/block/by-name/boot_a' "$Work\dumps\boot_a.img"
+SuDoToFile 'cat /dev/block/by-name/boot_b' "$Work\dumps\boot_b.img"
+SuDoToFile 'cat /dev/block/by-name/misc' "$Work\dumps\misc.full.bin"
 SuDoToFile 'dd if=/dev/block/by-name/misc bs=4096 count=1 2>/dev/null' "$Work\dumps\misc-head.bin"
-if ((Get-Item "$Work\dumps\boot_a.img").Length -lt 1MB) { Die (T 'pulling boot_a failed') }
+foreach ($pair in @('boot_a|boot_a.img','boot_b|boot_b.img','misc|misc.full.bin')) {
+    $partition = $pair.Split('|'); $name = $partition[0]; $local = Join-Path "$Work\dumps" $partition[1]
+    if (-not (Test-Path -LiteralPath $local -PathType Leaf)) { Die "pulling $name failed" }
+    $devicePath = "/dev/block/by-name/$name"
+    [int64]$expectedSize = 0
+    $sizeText = [string](SuDo "blockdev --getsize64 $devicePath")
+    if (-not [int64]::TryParse($sizeText.Trim(), [ref]$expectedSize) -or $expectedSize -le 0) { Die "cannot verify $name partition size; refusing to proceed without a complete backup" }
+    if ((Get-Item -LiteralPath $local).Length -ne $expectedSize) { Die "backup size for $name does not match the device partition" }
+    $remoteHashText = [string](SuDo "sha256sum $devicePath")
+    $remoteHash = if ($remoteHashText -match '^([0-9a-fA-F]{64})\s') { $Matches[1].ToLowerInvariant() } else { '' }
+    $localHash = (Get-FileHash -LiteralPath $local -Algorithm SHA256).Hash.ToLowerInvariant()
+    if (-not $remoteHash -or $remoteHash -ne $localHash) { Die "backup SHA-256 for $name does not match the device partition" }
+}
+$head = [IO.File]::ReadAllBytes((Join-Path "$Work\dumps" 'misc-head.bin'))
+$misc = [IO.File]::ReadAllBytes((Join-Path "$Work\dumps" 'misc.full.bin'))
+if ($head.Length -ne 4096 -or $misc.Length -lt 4096) { Die 'misc-head/full-misc backup size is invalid' }
+$headHash = [Security.Cryptography.SHA256]::Create().ComputeHash($head)
+$miscHeadHash = [Security.Cryptography.SHA256]::Create().ComputeHash($misc[0..4095])
+if ([BitConverter]::ToString($headHash) -ne [BitConverter]::ToString($miscHeadHash)) { Die 'misc-head does not match the first 4096 bytes of the verified full misc backup' }
+$backupId = '{0}-{1}' -f (Get-Date -Format 'yyyyMMdd-HHmmss'), ([Guid]::NewGuid().ToString('N').Substring(0,8))
+$backupDir = Join-Path "$Work\backups" $backupId
+New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
+foreach ($name in 'boot_a.img','boot_b.img','misc-head.bin','misc.full.bin') { Copy-Item -LiteralPath (Join-Path "$Work\dumps" $name) -Destination $backupDir }
+$backupLines = foreach ($name in 'boot_a.img','boot_b.img','misc-head.bin','misc.full.bin') {
+    $h = (Get-FileHash -LiteralPath (Join-Path $backupDir $name) -Algorithm SHA256).Hash.ToLowerInvariant()
+    "$h  $name"
+}
+[IO.File]::WriteAllLines((Join-Path $backupDir 'SHA256SUMS'), $backupLines, [Text.Encoding]::ASCII)
+Write-Host ('  ' + (T 'boot_b and full misc backups: {1}' $backupDir))
 # extract_subset.py builds the tree beside its place and renames it only when it is complete, so a
 # directory that is there holds the whole subset - and on Windows it also holds windows-source.tar.gz,
 # which is where the tools take the subset from there (see the header). An older run of the extractor
@@ -630,8 +836,9 @@ if (-not $Release) {
 Say (T 'Downloading release {1}' $Release)
 $REL = "$Work\release\$Release"
 New-Item -ItemType Directory -Force -Path $REL | Out-Null
-$base = if ($ReleaseUrl) { $ReleaseUrl } else { "https://github.com/$Repo/releases/download/$Release" }
-Invoke-WebRequest "$base/SHA256SUMS" -OutFile "$REL\SHA256SUMS" -UseBasicParsing
+$base = if ($U30AirHostPackage) { $null } elseif ($ReleaseUrl) { $ReleaseUrl } else { "https://github.com/$Repo/releases/download/$Release" }
+if ($U30AirHostPackage) { Copy-Item -LiteralPath (Join-Path $ReleaseDirectory 'SHA256SUMS') -Destination "$REL\SHA256SUMS" -Force }
+else { Invoke-WebRequest "$base/SHA256SUMS" -OutFile "$REL\SHA256SUMS" -UseBasicParsing }
 $sums = @{}
 foreach ($line in Get-Content "$REL\SHA256SUMS") {
     $p = $line -split '\s+', 2
@@ -639,17 +846,29 @@ foreach ($line in Get-Content "$REL\SHA256SUMS") {
 }
 $files = @('mu300-kernel.tar.gz') + ($OSES | ForEach-Object { RootfsFile $_ })
 if ($KERNEL -ne '5.4') { $files += "mu300-kernel-$KERNEL.tar.gz" }
+if ($vx -eq 'yes') {
+    # from the same release and SHA256SUMS; a release from before extras still has the engines in its images
+    if ($sums.ContainsKey('mu300-extra-vpn.tar.gz')) { $files += 'mu300-extra-vpn.tar.gz'; $EXTRA_VPN = "$REL\mu300-extra-vpn.tar.gz" }
+    else { Write-Host ('  ' + (T 'release {1} has no vpn extra: its systems still carry the VPN engines' $Release)) }
+}
 foreach ($f in $files) {
     if (-not $sums.ContainsKey($f)) {
         $why = if ($KERNEL -ne '5.4' -and $f -eq "mu300-kernel-$KERNEL.tar.gz") { ' ' + (T '(choose kernel 5.4, or a newer release)') } else { '' }
         Die ((T '{1} is not part of release {2}' $f $Release) + $why)
     }
-    $have = if (Test-Path "$REL\$f") { (Get-FileHash "$REL\$f" -Algorithm SHA256).Hash.ToLower() } else { '' }
-    if ($have -ne $sums[$f]) {
-        Write-Host "  $f"
-        Fetch "$base/$f" "$REL\$f.part"
-        if ((Get-FileHash "$REL\$f.part" -Algorithm SHA256).Hash.ToLower() -ne $sums[$f]) { Die (T 'checksum mismatch for {1}' $f) }
-        Move-Item -Force "$REL\$f.part" "$REL\$f"
+    if ($U30AirHostPackage) {
+        $sourceAsset = Join-Path $ReleaseDirectory $f
+        if (-not (Test-Path -LiteralPath $sourceAsset -PathType Leaf)) { Die "offline package is missing $f; no network fallback is allowed" }
+        if ((Get-FileHash -LiteralPath $sourceAsset -Algorithm SHA256).Hash.ToLowerInvariant() -ne $sums[$f]) { Die (T 'checksum mismatch for {1}' $f) }
+        Copy-Item -LiteralPath $sourceAsset -Destination (Join-Path $REL $f) -Force
+    } else {
+        $have = if (Test-Path "$REL\$f") { (Get-FileHash "$REL\$f" -Algorithm SHA256).Hash.ToLower() } else { '' }
+        if ($have -ne $sums[$f]) {
+            Write-Host "  $f"
+            Fetch "$base/$f" "$REL\$f.part"
+            if ((Get-FileHash "$REL\$f.part" -Algorithm SHA256).Hash.ToLower() -ne $sums[$f]) { Die (T 'checksum mismatch for {1}' $f) }
+            Move-Item -Force "$REL\$f.part" "$REL\$f"
+        }
     }
 }
 Remove-Item -Recurse -Force "$REL\kernel" -ErrorAction SilentlyContinue
@@ -669,6 +888,9 @@ if ($KERNEL -ne '5.4') {
     # a bundle names the devices it runs on; older mainline kernels do not bring up the U30 Air's USB (FINDINGS 33c)
     if ($DEVICE -ne 'f50' -and -not ((Test-Path "$KMAIN\devices") -and ((Get-Content "$KMAIN\devices") -match "\b$DEVICE\b"))) {
         Die (T 'release {1} does not support this device yet; use a newer one' $Release)
+    }
+    if (-not (SdKernelOk $SD_MODE $KMAIN)) {
+        Die (T 'the {1} kernel of release {2} cannot read the SD card: choose kernel 5.4, a newer release, or internal storage (MU300_STORAGE=internal)' $KERNEL $Release)
     }
 }
 
@@ -706,10 +928,16 @@ Write-Host ('  ' + (T 'source:         {1}' (T 'prebuilt release {1} + vendor fi
 $sysText = ($OSES -join ' ') + $(if ($OSES -contains 'ubuntu') { " (Ubuntu $UBUNTU)" } else { '' })
 Write-Host ('  ' + (T 'systems:        {1} (boots: {2})' $sysText $BOOT_OS))
 Write-Host ('  ' + (T 'kernel:         {1}' "$KERNEL$(if ($KMAIN) { " (mainline, $((Get-Content "$KMAIN\kernel.release").Trim()))" })"))
+Write-Host ('  ' + (T 'extras:         {1}' $(if ($EXTRA_VPN) { 'vpn' } else { T 'none' })))
 Write-Host ('  ' + (T 'default boot:   {1}' $(if ($DEFAULT_LINUX -eq 1) { T 'Linux (Android after {1} failed boots in a row)' $BOOT_ATTEMPTS } else { T 'Android, Linux on demand' })))
-Write-Host ('  ' + (T 'filesystem:     {1}' $(if ($FORMAT -eq 1) { T 'CREATE new ext4 (erases the Linux region)' } else { T 'keep existing' })))
+$fsText = if ($FORMAT -eq 0) { T 'keep existing' } elseif ($SD_MODE -eq 1) { T 'CREATE new ext4 (erases the SD card)' } else { T 'CREATE new ext4 (erases the Linux region)' }
+Write-Host ('  ' + (T 'filesystem:     {1}' $fsText))
 if ($UPDATE -eq 1) { Write-Host ('  ' + (T 'update:         settings and user data of the chosen systems are kept, everything else is replaced')) }
-Write-Host ('  ' + (T 'writes:         Linux region at offset {1}, boot_b, 32 bytes of misc (boot_a, GPT and userdata are not touched)' $OFF))
+if ($SD_MODE -eq 1) {
+    Write-Host ('  ' + (T 'writes:         SD card {1}, boot_b, 32 bytes of misc (the eMMC region, boot_a, GPT and userdata are not touched)' $SD_DEV))
+} else {
+    Write-Host ('  ' + (T 'writes:         Linux region at offset {1}, boot_b, 32 bytes of misc (boot_a, GPT and userdata are not touched)' $OFF))
+}
 if ((Ask (T 'Type INSTALL to continue') 'no') -ne 'INSTALL') { Die (T 'cancelled') }
 
 Say (T 'Copying to the device')
@@ -718,11 +946,13 @@ foreach ($os in $OSES) {
     & adb push "$REL\$(RootfsFile $os)" "$T/mu300-$os.tar.gz" | Out-Null
     & adb push "$Work\mu300-vendor-$os.tar.gz" "$T/mu300-vendor-$os.tar.gz" | Out-Null
 }
+# android-install.sh puts every pushed mu300-extra-<name>.tar.gz onto the Linux partition (extra/<name>)
+if ($EXTRA_VPN) { & adb push $EXTRA_VPN "$T/mu300-extra-vpn.tar.gz" | Out-Null }
 $envFile = "$Work\mu300-install.env"
-$lines = @("OFF=$OFF", "SIZE=$SIZE", "OFF_S=$($OFF / 512)", "SIZE_S=$($SIZE / 512)", "FORMAT=$FORMAT",
-    "OSES=`"$($OSES -join ' ')`"", "WIPE_LEGACY=$WIPE_LEGACY", "UPDATE=$UPDATE", "BOOT_OS=$BOOT_OS", "DEFAULT_LINUX=$DEFAULT_LINUX", "BOOT_ATTEMPTS=$BOOT_ATTEMPTS",
-    "IMPORT_HOTSPOT=$IMPORT_HOTSPOT", "KERNEL=$KERNEL", "PWHASH='$PWHASH'")
-WriteUnix $envFile (($lines -join "`n") + "`n")
+WriteUnix $envFile (InstallEnvText @{ OFF = $OFF; SIZE = $SIZE; INT_SIZE = $INT_SIZE; FORMAT = $FORMAT; OSES = $OSES
+    WIPE_LEGACY = $WIPE_LEGACY; UPDATE = $UPDATE; BOOT_OS = $BOOT_OS; DEFAULT_LINUX = $DEFAULT_LINUX
+    BOOT_ATTEMPTS = $BOOT_ATTEMPTS; IMPORT_HOTSPOT = $IMPORT_HOTSPOT; KERNEL = $KERNEL; SD_MODE = $SD_MODE
+    SD_DEV = $SD_DEV; INTERNAL_EXISTS = $INTERNAL_EXISTS; PWHASH = $PWHASH })
 & adb push $envFile "$T/mu300-install.env" | Out-Null
 Remove-Item $envFile
 $log = SuDo "sh $T/android-install.sh"
@@ -763,6 +993,6 @@ if ((SuDo 'magisk -v')) {
 Say (T 'Done. Rebooting into {1}' $BOOT_OS)
 $ip = if ($DEVICE -eq 'u30air') { '192.168.78.1' } else { '192.168.77.1' }
 Write-Host ('  ' + (T 'USB network: {1}   SSH: {2}' $ip $(if ($BOOT_OS -eq 'ubuntu') { "ubuntu@$ip" } else { "root@$ip, LuCI http://$ip" })))
-Write-Host ('  ' + (T 'switch systems: mu300-os ubuntu|openwrt   back to Android: mu300-next-boot android'))
+Write-Host ('  ' + (T 'switch systems: mu300-os {1}   back to Android: mu300-next-boot android' ($OSES -join '|')))
 Write-Host ('  ' + (T 'back to Linux from Android (with Magisk): su -c mu300-linux'))
 & adb reboot | Out-Null

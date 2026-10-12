@@ -386,13 +386,27 @@ static int pcie_rx_handle(int chn, struct mbuf_t *head,
 			  struct mbuf_t *tail, int num)
 {
 	struct sprd_hif *hif = sc2355_pcie_get_hif();
-	struct rx_mgmt *rx_mgmt = (struct rx_mgmt *)hif->rx_mgmt;
+	struct rx_mgmt *rx_mgmt;
 	struct sprd_msg *msg = NULL;
 	int buf_num = 0, len = 0, ret = 0;
 	struct mbuf_t *pos = head;
 
 	pr_debug("%s: channel:%d head:%p tail:%p num:%d\n",
 	       __func__, chn, head, tail, num);
+
+	/*
+	 * MU300: an RX interrupt outside the channels' lifetime (post_init publishes hif before it registers
+	 * them, post_deinit clears it after it unregistered them, sprd_iface_set_power serialises the two).
+	 * Without hif there is no device to unmap the buffers from and no queue to hand them to, and the
+	 * channel's mbuf pool is already freed (no sprdwcn_bus_list_free): the data buffers of this one list
+	 * leak, and it is said once.  A NULL here was a panic in hard IRQ (FINDINGS 31n).
+	 */
+	rx_mgmt = hif ? (struct rx_mgmt *)READ_ONCE(hif->rx_mgmt) : NULL;
+	if (unlikely(!rx_mgmt)) {
+		pr_err_once("%s: RX on channel %d with no Wi-Fi context, %d buffer(s) dropped\n",
+			    __func__, chn, num);
+		return 0;
+	}
 
 	for (buf_num = num; buf_num > 0; buf_num--, pos = pos->next) {
 		if (unlikely(!pos)) {
@@ -660,7 +674,7 @@ out:
 
 struct sprd_hif *sc2355_pcie_get_hif(void)
 {
-	return (struct sprd_hif *)sc2355_hif.hif;
+	return (struct sprd_hif *)smp_load_acquire(&sc2355_hif.hif);
 }
 
 #define INTF_IS_PCIE \
@@ -1911,7 +1925,6 @@ int sc2355_pcie_fc_get_send_num(struct sprd_hif *hif,
 {
 	int free_num = 0;
 	struct tx_mgmt *tx_mgmt = hif->tx_mgmt;
-	static unsigned long caller_jiffies;
 	/*send all data in buff with PCIe interface*/
 	unsigned int tx_buf_max = get_max_fw_tx_dscr() >
 				  pcie_get_tx_buf_num() ?
@@ -1922,12 +1935,6 @@ int sc2355_pcie_fc_get_send_num(struct sprd_hif *hif,
 		return 0;
 
 	free_num = atomic_read(&tx_mgmt->xmit_msg_list.free_num);
-	if (printk_timed_ratelimit(&caller_jiffies, 1000)) {
-		pr_debug("%s, free_num=%d, data_num=%d\n", __func__,
-			free_num, data_num);
-		if (list_empty(&tx_mgmt->xmit_msg_list.to_free_list))
-			pr_info("%s: to free list empty\n", __func__);
-	}
 
 	if ((free_num + data_num) >= tx_buf_max) {
 		pr_debug("%s, free_num=%d, data_num=%d\n", __func__,
@@ -1944,7 +1951,6 @@ int sc2355_pcie_fc_test_send_num(struct sprd_hif *hif,
 {
 	int free_num = 0;
 	struct tx_mgmt *tx_mgmt = hif->tx_mgmt;
-	static unsigned long caller_jiffies;
 	/*send all data in buff with PCIe interface, TODO*/
 	unsigned int tx_buf_max = get_max_fw_tx_dscr() >
 				  pcie_get_tx_buf_num() ?
@@ -1955,12 +1961,6 @@ int sc2355_pcie_fc_test_send_num(struct sprd_hif *hif,
 		return 0;
 
 	free_num = atomic_read(&tx_mgmt->xmit_msg_list.free_num);
-	if (printk_timed_ratelimit(&caller_jiffies, 1000)) {
-		pr_debug("%s,%d free_num=%d, data_num=%d\n", __func__,
-			__LINE__, free_num, data_num);
-		if (list_empty(&tx_mgmt->xmit_msg_list.to_free_list))
-			pr_info("%s: to free list empty\n", __func__);
-	}
 
 	if ((free_num + data_num) >= tx_buf_max) {
 		pr_err("%s,%d free_num=%d, data_num=%d\n",
@@ -2033,7 +2033,16 @@ int pcie_post_init(struct sprd_hif *hif)
 {
 	int ret = -EINVAL, chn = 0;
 
-	sc2355_hif.hif = (void *)hif;
+	/* MU300: published before any channel can interrupt (the RX/TX callbacks read it in hard IRQ) */
+	smp_store_release(&sc2355_hif.hif, (void *)hif);
+	/*
+	 * MU300 (from kanoqwq/mu300-linux): a failed/aborted earlier power cycle clears this pointer in the
+	 * error path below.  The vendor driver only restores it in pcie_init(),
+	 * but a later WCN power-on may call post_init directly.  Passing
+	 * &NULL[0] to mchn_init then makes Wi-Fi permanently fail until reboot.
+	 * The channel table is static, so make every post-init self-contained.
+	 */
+	sc2355_hif.mchn_ops = sc2355_pcie_hif_ops;
 	sc2355_hif.max_num =
 		sizeof(sc2355_pcie_hif_ops) / sizeof(struct mchn_ops_t);
 
@@ -2055,7 +2064,9 @@ int pcie_post_init(struct sprd_hif *hif)
 err:
 	pr_err("%s: unregister %d ops\n", __func__, sc2355_hif.max_num);
 
-	for (; chn > 0; chn--)
+	/* MU300: undo the channels that were set up and the one that failed, chn .. 0 (the vendor loop stopped at
+	 * 1; a failed channel can be registered with half its EDMA state, and deinit skips one never registered) */
+	for (; chn >= 0; chn--)
 		sprdwcn_bus_chn_deinit(&sc2355_hif.mchn_ops[chn]);
 	sc2355_hif.mchn_ops = NULL;
 	sc2355_hif.max_num = 0;
@@ -2069,7 +2080,8 @@ void pcie_post_deinit(struct sprd_hif *hif)
 
 	for (chn = 0; chn < sc2355_hif.max_num; chn++)
 		sprdwcn_bus_chn_deinit(&sc2355_hif.mchn_ops[chn]);
-	sc2355_hif.hif = NULL;
+	/* MU300: cleared only after every channel is unregistered (the callbacks check for NULL) */
+	WRITE_ONCE(sc2355_hif.hif, NULL);
 	sc2355_hif.max_num = 0;
 
 }

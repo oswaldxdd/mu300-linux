@@ -4,11 +4,11 @@
 
 ## 哪些源码控制 charge2
 
-source/ 是 charge2 的权威、完整源码快照。其 upstream/build.sh 在 Linux 7.2.x 路径安装 upstream/u30air 驱动与配置；upstream/build-modules.sh 构建匹配模块；upstream/make-bundle.sh 生成 U30 Air 内核包。该版本使用 Linux 7.2.9-u30air-charge2。
+分支根目录现在默认构建 charge2；根目录 README.md 和 BUILD-CHARGE2.md 是当前构建入口。此处 source/ 保留为 v2026.10.15-charge2 发布时的完整源码快照。其 upstream/build.sh 在 Linux 7.2.x 路径安装 upstream/u30air 驱动与配置；upstream/build-modules.sh 构建匹配模块；upstream/make-bundle.sh 生成 U30 Air 内核包。该版本使用 Linux 7.2.9-u30air-charge2。
 
 充电上限及其前端和运行时均来自这份快照：内核策略位于 source/upstream/u30air/fcc-learning/source/charge-limit-policy.h 及同目录驱动中；Type-C/PD 实现在 source/upstream/u30air/typec/；WiFi 永久 MAC 修复位于 source/upstream/modules/sprd_wlan_combo/common/iface.c。OpenWrt 电源界面、RPC、持久设置和守护进程位于 source/openwrt/、source/rootfs/，由同目录 source/build-full-release.py 的 rootfs 映射装配。
 
-分支根目录的旧 upstream/build.sh、kernel/build-all.sh 及根目录 openwrt/ 属于原有 5.4/6.18 流程，不会构建或启用 charge2 充电上限。不要把 charge2 的开关单独复制到旧 LuCI；该内核能力和配套 RPC/守护进程必须一起部署。完整固件包仍按本目录的独立安装器和发布说明使用。
+根目录 upstream/build.sh、upstream/build-modules.sh 已默认选择 7.2.9，根目录 openwrt/、rootfs/ 和 upstream/u30air/ 已同步此版本源码。kernel/build-all.sh 等通用兼容入口仍须显式选择；不要把它们误认为 charge2 默认构建入口。不要把 charge2 的开关单独复制到旧 LuCI；该内核能力和配套 RPC/守护进程必须一起部署。完整固件包仍按本目录的独立安装器和发布说明使用。
 
 ## 功能与验证边界
 

@@ -9,7 +9,7 @@ on:
   schedule:
     - cron: '30 4 * * 1'
   push:
-    branches: [main]
+    branches: [main, u30air]
     paths: ['upstream/**', '.github/workflows/mainline.yml']
   workflow_dispatch:
     inputs:
@@ -33,6 +33,10 @@ jobs:
           if [ -n "$KV_INPUT" ]; then
             echo "$KV_INPUT" | grep -Eq '^[0-9]+\.[0-9]+(\.[0-9]+)?$' || { echo "not a kernel version: $KV_INPUT"; exit 1; }
             echo "list=[\"$KV_INPUT\"]" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$GITHUB_REF_NAME" = u30air ]; then
+            echo 'list=["7.2.9"]' >> "$GITHUB_OUTPUT"
             exit 0
           fi
           curl -fsSL https://www.kernel.org/releases.json | python3 -c '
@@ -67,7 +71,7 @@ jobs:
         run: |
           docker run --rm -e KV="$KV" -v mu300-mainline:/src -v "$PWD/upstream":/work \
             mu300-mainline-build bash /work/build-modules.sh > /dev/null
-          ls upstream/out/modules/*.ko | wc -l
+          ls upstream/out-7.2/modules/*.ko | wc -l
       - name: Build logs
         if: failure()
-        run: tail -n 60 upstream/out/modules/*.log 2>/dev/null || true
+        run: tail -n 60 upstream/out-7.2/modules/*.log 2>/dev/null || true

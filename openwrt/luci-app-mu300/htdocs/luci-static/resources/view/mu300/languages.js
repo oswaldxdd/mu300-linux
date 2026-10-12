@@ -6,8 +6,9 @@
 
 /* Every value from the backend goes into E() inside an array: LuCI's E() takes a lone string as HTML, an array's
  * strings as text. */
-/* System > Languages: the language of the web interface, and optional extra languages when mu300-extra is present.
- * The backend is mu300dash lang_get/lang_set (unisoc-modem/languages, mu300-extra). */
+/* System > Languages: the language of the web interface, and the lang extra (more languages for LuCI and this panel)
+ * - installed from the release or from an uploaded mu300-extra-lang.tar.gz, each language enabled or disabled. The
+ * backend is mu300dash lang_get/lang_set (unisoc-modem/languages, mu300-extra). */
 var UPLOAD = '/tmp/mu300-extra-lang.tar.gz';
 
 return view.extend({
@@ -91,7 +92,7 @@ return view.extend({
 			E('h3', {}, _('Language of the web interface')),
 			E('div', { 'style': 'display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0' }, [ pick, useBtn ]),
 			E('div', { 'class': 'mud-note' }, [
-				_('English, Turkish and Simplified Chinese translations for this panel are included; other LuCI translations depend on installed packages.') + ' ',
+				_('English, Turkish and Chinese come with the system; the language pack adds the others.') + ' ',
 				E('a', { 'href': L.url('admin/system/system') }, _('The same setting is in System > System > Language and Style.'))
 			])
 		]);
@@ -101,10 +102,7 @@ return view.extend({
 			E('h3', {}, _('Language pack'))
 		]);
 		var actions = E('div', { 'style': 'display:flex;gap:8px;flex-wrap:wrap;margin:10px 0' });
-		if (!ex.available) {
-			pack.appendChild(E('div', { 'class': 'mud-note' },
-				_('Extra language pack management is unavailable in this firmware. English, Turkish and Chinese remain available.')));
-		} else if (!ex.installed) {
+		if (!ex.installed) {
 			pack.appendChild(E('div', { 'class': 'mud-note' },
 				_('The language pack (mu300-extra-lang.tar.gz, about 2 MB) adds LuCI in about 40 more languages and this panel in 29 of them. Download it from the release of this system, or upload the file from the release page when the device has no internet.')));
 			var dl = E('button', { 'class': 'mud-btn', 'id': 'mud-lang-download', 'disabled': running ? '' : null }, _('Download from the release'));
@@ -134,7 +132,7 @@ return view.extend({
 		else if (job.state === 'failed') pack.appendChild(E('div', { 'class': 'mud-note' },
 			[ _('The language pack could not be installed') + (job.log ? ': ' + job.log : '') ]));
 
-		if (ex.installed && ex.available) {
+		if (ex.installed) {
 			var rows = langs.slice().sort(function(a, b) { return a.name.localeCompare(b.name); }).map(function(l) {
 				var b = E('button', { 'class': 'mud-btn', 'data-code': l.code }, [ l.enabled ? _('Disable') : _('Enable') ]);
 				b.addEventListener('click', function() { self.set(b, l.enabled ? 'disable' : 'enable', l.code); });

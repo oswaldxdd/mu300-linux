@@ -5,7 +5,7 @@ name: Tests
 # 5.1 and PowerShell 7. Run them locally with: python3 -m unittest discover -s tests
 on:
   push:
-    branches: [main]
+    branches: [main, u30air]
   pull_request:
 
 permissions:
@@ -20,9 +20,12 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4     # the control panel's JavaScript tests
+        with:
+          node-version: 22
       - name: shells and lz4
         run: |
-          if [ "$RUNNER_OS" = Linux ]; then sudo apt-get install -y -qq dash busybox lz4 >/dev/null; fi
+          if [ "$RUNNER_OS" = Linux ]; then sudo apt-get install -y -qq dash busybox lz4 zip unzip cpio jq >/dev/null; fi
           python3 -m pip install -q lz4 || python3 -m pip install -q --break-system-packages lz4
       - name: tests
         run: |

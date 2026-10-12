@@ -445,11 +445,11 @@ menu_stress() {
 
 # ---------------------------------------------------------------- info
 # charging, full, on battery...: the SQC charger says "Unknown" once the battery is full, so the power source says
-# more than the status alone
+# more than the status alone (5.4: usb/ac; mainline: the U30 Air's bq256xx-charger)
 battery_state() {
     st=$(cat "$BATDIR/status" 2>/dev/null)
     [ "$st" = Unknown ] && st=
-    ext=0; for s in usb ac; do [ "$(cat /sys/class/power_supply/$s/online 2>/dev/null)" = 1 ] && ext=1; done
+    ext=0; for s in usb ac bq256xx-charger; do [ "$(cat /sys/class/power_supply/$s/online 2>/dev/null)" = 1 ] && ext=1; done
     case $st in
         Charging) echo charging ;;
         Full) echo "full, on USB power" ;;
@@ -476,6 +476,8 @@ info() {
 # ---------------------------------------------------------------- menus
 menu() {  # menu TITLE "label" ... -> sets CHOICE to the number (0 = back)
     t=$1; shift; title "$t"
+    # a newer release (mu300-update notice, at boot and every 6 hours)
+    [ "$t" = "Main menu" ] && [ -s /run/mu300/update-available ] && printf '  %s%s%s\n\n' "$B" "$(cat /run/mu300/update-available)" "$N"
     i=1; for l in "$@"; do printf '  %s%2d%s  %s\n' "$C" "$i" "$N" "$l"; i=$((i + 1)); done
     printf '\n  %s 0%s  %s\n\n  > ' "$C" "$N" "$( [ "$t" = "Main menu" ] && echo Exit || echo Back)"
     read -r CHOICE || CHOICE=0
@@ -517,6 +519,10 @@ wifi_pick_and_join() {
         read -r w || return
         case $w in
             1) /opt/mu300/bin/wifi-client scan-mode on 2>&1 | sed 's/^/  /'
+               # the reboot takes the hotspot away: whoever came in over it loses this session (reported)
+               printf '\n  %sConnected through this hotspot? The session ends here, and the hotspot is off after the\n' "$Y"
+               printf '  reboot. Come back over USB (%s) or wait: it returns within 10 minutes if no network\n' "$(/opt/mu300/bin/mu300-lan-ip 2>/dev/null || echo 192.168.77.1)"
+               printf '  is joined.%s\n' "$N"
                printf '\n  %sReboot now?%s [y/N] ' "$B" "$N"
                read -r a
                case $a in y|Y|e|E) printf '\n  rebooting...\n'; sync; reboot ;; esac
@@ -531,7 +537,7 @@ wifi_pick_and_join() {
     fi
     if [ -z "$list" ]; then
         printf '\n  Network name (empty = back)\n  > '
-        read -r ssid || return
+        IFS= read -r ssid || return
         [ -n "$ssid" ] || return
         # people paste the whole example line, quotes and all: "NAME" "PASSWORD"
         case $ssid in
@@ -548,15 +554,28 @@ wifi_pick_and_join() {
         case $n in ''|0|*[!0-9]*) return ;; esac
         line=$(printf '%s\n' "$list" | sed -n "${n}p")
         [ -n "$line" ] || return
-        # the scan output is "%4s dBm  %-5s  %s", so the name starts at column 18 and may contain spaces
-        ssid=$(printf '%s' "$line" | cut -c18-)
+        # the scan output is "%4s dBm  %-6s  %s", so the name starts at column 19 and may contain spaces
+        ssid=$(printf '%s' "$line" | cut -c19-)
         [ -n "$ssid" ] || return
+        # a name shown with \xNN escapes (control or invisible characters, a backslash) is not its real name
+        case $ssid in *'\x'*)
+            printf '\n  %sThis name has characters that are shown escaped; join it with\n' "$Y"
+            printf '  sudo wifi-client connect "<its real name>"%s\n' "$N"; pause; return ;;
+        esac
     fi
-    printf '\n  password for %s%s%s (empty for an open network, nothing is shown as you type): ' "$B" "$ssid" "$N"
-    stty -echo 2>/dev/null; read -r pass; stty echo 2>/dev/null; printf '\n\n'
-    /opt/mu300/bin/wifi-client connect "$ssid" "$pass" 2>&1 | sed 's/^/  /'
-    rc=$?
-    if [ "$rc" = 3 ] || grep -q "^SSID=$ssid$" /etc/mu300/wifi-client.conf 2>/dev/null && [ ! -e /run/mu300-wifi-client.active ]; then
+    # wifi-client's own check of a name (the one connect makes), before a password is asked for it; what is shown
+    # of a typed name is what wifi-client shows of it
+    if ! /opt/mu300/bin/wifi-client valid-name "$ssid"; then
+        printf '\n  %sA network name is 1 to 32 bytes, without control characters.%s\n' "$Y" "$N"; pause; return
+    fi
+    printf '\n  password for %s%s%s (empty for an open network, nothing is shown as you type): ' "$B" \
+        "$(/opt/mu300/bin/wifi-client shown-name "$ssid")" "$N"
+    stty -echo 2>/dev/null; IFS= read -r pass; stty echo 2>/dev/null; printf '\n\n'
+    # on stdin: as an argument it would show in ps. The exit status is wifi-client's, not sed's (3: saved, the radio
+    # is the hotspot and a reboot joins it)
+    { rc=$( { { printf '%s\n' "$pass" | /opt/mu300/bin/wifi-client connect "$ssid" - 2>&1 3>&- 4>&-; echo "$?" >&3; } |
+              sed 's/^/  /' >&4; } 3>&1 ); } 4>&1
+    if [ "$rc" = 3 ] || grep -qFx "SSID=$ssid" /etc/mu300/wifi-client.conf 2>/dev/null && [ ! -e /run/mu300-wifi-client.active ]; then
         printf '\n  %sReboot now to join it?%s [y/N] ' "$B" "$N"
         read -r a
         case $a in y|Y|e|E) printf '\n  rebooting...\n'; sync; reboot ;; esac
@@ -568,12 +587,12 @@ menu_wifi() {
     while :; do
         mode=$(/opt/mu300/bin/wifi-client status 2>/dev/null | sed -n 's/^mode  *//p')
         menu "Wi-Fi  [${mode:-unknown}]" "Status" "Join a network (scan and connect)" \
-            "Reconnect the saved network" "Disconnect (hotspot comes back)" "Forget the saved network" \
+            "Reconnect the saved network" "Disconnect (the hotspot comes back, also after a reboot)" "Forget the saved network" \
             "Hotspot: restart" "Hotspot: name and password"
         case $CHOICE in
             1) title "Wi-Fi"; /opt/mu300/bin/wifi-client status 2>&1 | sed 's/^/  /'; pause ;;
             2) wifi_pick_and_join ;;
-            3) title "Wi-Fi"; /opt/mu300/bin/wifi-client up 2>&1 | sed 's/^/  /'; pause ;;
+            3) title "Wi-Fi"; /opt/mu300/bin/wifi-client reconnect 2>&1 | sed 's/^/  /'; pause ;;
             4) title "Wi-Fi"; /opt/mu300/bin/wifi-client disconnect 2>&1 | sed 's/^/  /'; pause ;;
             5) title "Wi-Fi"; /opt/mu300/bin/wifi-client forget 2>&1 | sed 's/^/  /'; pause ;;
             6) if is_openwrt; then wifi reload; else svc restart mu300-hotspot; fi; echo "  restarted"; pause ;;
@@ -588,30 +607,75 @@ menu_wifi() {
 }
 
 vpn_enabled() { [ -r "$VPN_CONF" ] && grep -q '^ENABLE=1' "$VPN_CONF"; }
+VPN=/opt/mu300/bin/mu300-vpn
+# vpn_ask_id PROMPT: the profile list, then one id typed by the user into $id (empty: the user changed their mind).
+# The id is checked here as mu300-vpn checks it, so a stray paste never reaches a command line or an error message.
+vpn_ask_id() {
+    printf '\n'; "$VPN" profile list 2>/dev/null | sed 's/^/  /'
+    printf '\n  %s: ' "$1"; read -r id || id=
+    case $id in
+        '') return 1 ;;
+        *[!a-z0-9-]*) echo "  a profile id is lowercase letters, digits and -"; pause; return 1 ;;
+    esac
+    [ ${#id} -le 32 ] || { echo "  a profile id is at most 32 characters"; pause; return 1; }
+}
+# The VPN works in profiles (mu300-vpn profile ...); vpn.conf only holds the ENABLE switch now, so there is nothing
+# to edit here. Everything below calls mu300-vpn, which prints what it did; it never prints a link or a key, and
+# neither does this menu: a pasted link is read with read -r and handed over as one argument, not echoed or logged.
 menu_vpn() {
     while :; do
-        title "VPN (VLESS)"
-        printf '  service: %s   config: %s\n\n' "$(state_color "$(svc status mu300-vpn)")" \
-            "$( [ -r "$VPN_CONF" ] && (vpn_enabled && echo "enabled" || echo "disabled") || echo "missing")"
-        /opt/mu300/bin/mu300-vpn status 2>/dev/null | sed 's/^/  /'
-        menu_items="Turn on (ENABLE=1, start at boot)|Turn off (stop, remove kill switch)|Edit config ($VPN_CONF)|Restart"
+        title "VPN"
+        printf '  service: %s   switch: %s\n\n' "$(state_color "$(svc status mu300-vpn)")" \
+            "$( [ -r "$VPN_CONF" ] && (vpn_enabled && echo "on" || echo "off") || echo "off (no vpn.conf yet)")"
+        "$VPN" status 2>/dev/null | sed 's/^/  /'
+        menu_items="Turn on|Turn off|Profiles (list / use)|Import a profile (link or file path)|Remove a profile|Kill switch on/off|Engines (install missing)|Restart"
         printf '\n'
         i=1; IFS='|'; for l in $menu_items; do printf '  %s%d%s  %s\n' "$C" "$i" "$N" "$l"; i=$((i + 1)); done; unset IFS
         printf '\n  %s0%s  Back\n\n  > ' "$C" "$N"
         read -r c || return
         case $c in
-            1) [ -r "$VPN_CONF" ] || cp /etc/mu300/vpn.conf.example "$VPN_CONF" 2>/dev/null
-               chmod 600 "$VPN_CONF"
-               if grep -q '^VLESS_URI=""' "$VPN_CONF" || ! grep -q '^VLESS_URI=' "$VPN_CONF"; then
-                   echo "  set VLESS_URI first (Edit config)"; pause; continue
+            # on checks the active profile and its engines itself and says what is missing (mu300-vpn engines install)
+            1) "$VPN" on || pause; sleep 3 ;;
+            2) "$VPN" off; pause ;;
+            3) vpn_ask_id "Profile to make active (Enter: back)" || continue
+               # a running VPN restarts on the new profile; off, it is only remembered
+               "$VPN" profile use "$id"; pause ;;
+            4) printf '\n  A share link (vless://, vmess://, trojan://, ss://), or the path of a .conf, .ovpn, .json or\n'
+               printf '  .yaml file on this device. It is stored under /etc/mu300/vpn and not shown again.\n\n  Link or path: '
+               read -r src || src=
+               # - would make mu300-vpn read the terminal as the file; the link itself goes here
+               case $src in '') continue ;; -) echo "  paste the link itself, or a file path"; pause; continue ;; esac
+               printf '  Name (Enter: from the link or file): '; read -r name || name=
+               # a link goes through stdin ("-"), never as an argument every local user could read in the process
+               # list; a file path stays an argument (mu300-vpn reads the file itself)
+               case $src in
+                   *://*) if [ -n "$name" ]; then printf '%s\n' "$src" | "$VPN" profile import - "$name"
+                          else printf '%s\n' "$src" | "$VPN" profile import -; fi ;;
+                   *) if [ -n "$name" ]; then "$VPN" profile import "$src" "$name"; else "$VPN" profile import "$src"; fi ;;
+               esac
+               unset src
+               echo; echo "  make it active with Profiles (list / use), then Turn on"; pause ;;
+            5) vpn_ask_id "Profile to remove (Enter: back)" || continue
+               "$VPN" profile remove "$id"; pause ;;
+            6) ks=$("$VPN" settings get KILL_SWITCH 2>/dev/null)
+               if [ "$ks" = 0 ]; then
+                   printf '  The kill switch is off. Turn it on? Nothing but the tunnel will leave the device, also while the tunnel is down. [y/N] '
+                   read -r a; case $a in y|Y) "$VPN" settings set KILL_SWITCH 1 ;; *) continue ;; esac
+               else
+                   printf '  The kill switch is on. Turn it off? Traffic leaves the device unprotected while the tunnel is down. [y/N] '
+                   read -r a; case $a in y|Y) "$VPN" settings set KILL_SWITCH 0 ;; *) continue ;; esac
                fi
-               sed -i 's/^ENABLE=.*/ENABLE=1/' "$VPN_CONF"; svc enable mu300-vpn; sleep 3 ;;
-            2) [ -r "$VPN_CONF" ] && sed -i 's/^ENABLE=.*/ENABLE=0/' "$VPN_CONF"
-               svc disable mu300-vpn; /opt/mu300/bin/mu300-vpn off ;;
-            3) [ -r "$VPN_CONF" ] || { cp /etc/mu300/vpn.conf.example "$VPN_CONF" 2>/dev/null; chmod 600 "$VPN_CONF"; }
-               ${EDITOR:-$(command -v nano || echo vi)} "$VPN_CONF"
-               vpn_enabled && svc restart mu300-vpn ;;
-            4) svc restart mu300-vpn; sleep 3 ;;
+               # the setting is read at start: a VPN that is on restarts (off, it is used from the next start)
+               vpn_enabled && { "$VPN" restart; sleep 3; } ;;
+            7) printf '\n'; "$VPN" engines 2>/dev/null | sed 's/^/  /'
+               printf '\n  Engine to install (xray, sing-box, mihomo, wireguard, openvpn; Enter: back): '
+               read -r eng || eng=
+               case $eng in
+                   '') continue ;;
+                   *[!a-z0-9-]*) echo "  not an engine name"; pause; continue ;;
+               esac
+               "$VPN" engines install "$eng"; pause ;;
+            8) "$VPN" restart; sleep 3 ;;
             *) return ;;
         esac
     done

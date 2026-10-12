@@ -44,13 +44,12 @@ json_langs() {
 }
 
 do_get() {
-    if [ -x "$EXTRA_CMD" ]; then available=1; else available=0; fi
     luci=$(uci -q show luci.languages | sed -n "s/^luci\.languages\.\([a-z_]*\)='\{0,1\}\(.*\)'\{0,1\}$/\1$TAB\2/p" |
         sed "s/'\$//")
     if [ -d "$EXTRA_DIR/i18n" ]; then
         installed=1
         release=$(cat "$EXTRA_DIR/release" 2>/dev/null)
-        if [ "$available" = 1 ]; then extra=$("$EXTRA_CMD" lang list 2>/dev/null); else extra=; fi
+        extra=$("$EXTRA_CMD" lang list 2>/dev/null)
     else
         installed=0; release=; extra=
     fi
@@ -60,10 +59,10 @@ do_get() {
     # "running" without a live job: it was killed (or the device rebooted) before it could say how it ended
     [ "$job" != running ] || running || job=failed
     case $job in running|done|failed|'') ;; *) job=failed ;; esac
-    printf '{"ok":1,"current":%s,"luci":%s,"extra":{"available":%d,"installed":%d,"release":%s,"languages":%s},"upload":%d,"job":{"state":%s,"log":%s}}\n' \
+    printf '{"ok":1,"current":%s,"luci":%s,"extra":{"installed":%d,"release":%s,"languages":%s},"upload":%d,"job":{"state":%s,"log":%s}}\n' \
         "$(json_str "$(uci -q get luci.main.lang || echo auto)")" \
         "$(printf '%s\n' "$luci" | json_langs '')" \
-        "$available" "$installed" "$(json_str_or_null "$release")" \
+        "$installed" "$(json_str_or_null "$release")" \
         "$(printf '%s\n' "$extra" | awk -F '\t' 'NF == 3 { print $1 "\t" $3 "\t" $2 }' | json_langs "$EXTRA_DIR/i18n")" \
         "$([ -s "$UPLOAD" ] && echo 1 || echo 0)" \
         "$(json_str_or_null "$job")" "$(json_str_or_null "$(job_tail)")"
@@ -71,7 +70,6 @@ do_get() {
 
 do_switch() {  # enable|disable CODE...|all
     op=$1; shift
-    [ -x "$EXTRA_CMD" ] || error 'Extra language pack management is unavailable in this firmware'
     [ -d "$EXTRA_DIR/i18n" ] || error 'The language pack is not installed'
     [ $# -gt 0 ] || error 'No language given'
     if [ "$1" != all ]; then
@@ -93,7 +91,6 @@ do_use() {
 }
 
 do_install() {
-    [ -x "$EXTRA_CMD" ] || error 'Extra language pack management is unavailable in this firmware'
     case ${1:-} in
         release) file= ;;
         file) [ -f "$UPLOAD" ] && [ ! -L "$UPLOAD" ] || error 'No uploaded language pack' ;;
@@ -123,7 +120,6 @@ do_install() {
 }
 
 do_remove() {
-    [ -x "$EXTRA_CMD" ] || error 'Extra language pack management is unavailable in this firmware'
     [ -d "$EXTRA_DIR" ] || error 'The language pack is not installed'
     running && error 'An installation is already running'
     out=$("$EXTRA_CMD" remove lang 2>&1) || {

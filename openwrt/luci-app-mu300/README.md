@@ -7,6 +7,8 @@ dashboard, live radio readings, persistent network/band/cell/EN-DC locks, a
 guarded AT terminal and an SMS UI.
 The Device Management page controls USB role and gadget network policy, and
 lists host-side USB network adapters for optional attachment to the LAN bridge.
+The TTL page (Cellular) sets the TTL of everything that leaves through mobile data
+(`mu300-ttl`, through the `unisoc-modem/ttl` adapter).
 
 The dashboard follows LuCI's selected language. Its colors follow Aurora's existing
 tokens when present, or the official Bootstrap theme's light/dark tokens.
@@ -90,8 +92,12 @@ USB role defaults to device at every boot. The page can switch it immediately;
 checking host auto-apply asks the package's boot worker to reapply host mode
 at every boot. On the battery-less F50, the plugin writes the requested role
 to sysfs directly: USB management disappears and an attached adapter may need
-an externally powered hub. U30 Air uses `mu300-usb` and its charger boost/VBUS
-checks. Other hardware can use the sysfs fallback or configure
+an externally powered hub. U30 Air uses `mu300-usb`; on the native 7.2 driver it
+requires external input and confirms OTG boost is off before Host, while the
+charger remains kernel-managed. Host stays manual unless the operator enables
+the explicit automatic policy. If the native driver is absent, the helper
+refuses role changes rather than falling back to an unguarded role switch.
+Other hardware can use the sysfs fallback or configure
 `unisoc_modem.usb.role_command` with a platform-specific executable that
 accepts `host` or `device`. The plugin must not bypass a known platform's
 power-safety checks.

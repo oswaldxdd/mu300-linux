@@ -37,6 +37,7 @@ for a in "$@"; do
     esac
 done
 . "$TOP/tools/i18n.sh"
+. "$TOP/tools/storage.sh"
 choose_language
 say() { printf '\n==> %s\n' "$*"; }
 die() { printf '\n%s %s\n' "$(t 'ERROR:' 2>/dev/null || echo ERROR:)" "$*" >&2; exit 1; }
@@ -237,51 +238,61 @@ $(t "The backup copy at the end of the disk was written first, so Android's own 
 
 # ---------------------------------------------------------------- free eMMC region
 say "$(t 'Locating free eMMC space after the last partition')"
-set -- $(su_do 'e=0; for p in /sys/block/mmcblk0/mmcblk0p*; do x=$(( $(cat $p/start) + $(cat $p/size) )); [ $x -gt $e ] && e=$x; done; echo $e $(cat /sys/block/mmcblk0/size)')
-[ $# -eq 2 ] || die "$(t 'could not read the partition table from the device (is su granted? try again)')"
-last_end=$1; disk=$2
-start=$(( (last_end / 4096 + 1) * 4096 ))
-end=$(( ((disk - 34) / 4096 - 1) * 4096 ))
-OFF=$((start * 512)); SIZE=$(( (end - start) * 512 ))
+region_probe || die "$(t 'could not read the partition table from the device (is su granted? try again)')"
 gib() { awk -v b="$1" 'BEGIN { printf "%.1f GiB", b / 1073741824 }'; }
 # What each choice needs: the installed systems measure ~320 MiB (OpenWrt) and ~580 MiB (Ubuntu), and an update
 # keeps the previous one as <os>.old while the new one is unpacked, so allow for two of each plus working room.
 NEED_OPENWRT=$((800 * 1024 * 1024)); NEED_UBUNTU=$((1600 * 1024 * 1024)); NEED_BOTH=$((2400 * 1024 * 1024))
 echo "$(t 'eMMC: {1} ({2} sectors), partitions end at {3} (sector {4}), free after them: {5}' "$(gib $((disk * 512)))" "$disk" "$(gib $((last_end * 512)))" "$last_end" "$(gib $SIZE)")"
+# the SD card as the other place for it (boot/init looks there first)
+sd_probe
+[ "$SD_SMALL" = 1 ] && echo "$(t 'SD card present but smaller than 700 MiB; not used')"
+if [ $CHECK_ONLY = 1 ]; then
+    SD_MODE=0; sd_ex=no
+    if [ -n "$SD_DEV" ]; then
+        sd_ex=$(sd_existing)
+        echo "$(t 'SD card: {1}, {2}, existing mu300sd filesystem: {3}' "$SD_DEV" "$(gib "$SD_BYTES")" "$(t "$([ $sd_ex = yes ] && echo yes || echo no)")")"
+        [ $sd_ex = foreign ] && echo "  $(t 'the SD card holds another Linux (ext4) filesystem; the installer will not format it')"
+    fi
+else
+    choose_storage
+fi
 # Smaller eMMC variants leave less room behind userdata, and how much is needed depends on the choice further
 # down - OpenWrt alone fits in a few hundred megabytes. So refuse only what cannot hold anything at all, and
 # check the real requirement once the systems are known. There is nowhere else to put this region on these
 # devices: userdata is metadata-encrypted (dm-default-key), so an image file inside it cannot be read from
 # Linux, and the spare-looking blackbox and fulldumpdb partitions are written by the firmware itself.
-if [ $SIZE -lt $((700 * 1024 * 1024)) ]; then
+if [ $SD_MODE = 0 ] && [ $SIZE -lt $((700 * 1024 * 1024)) ]; then
+    # --check with a card: a real run offers the card (as the default) and needs no repartitioning
+    if [ $CHECK_ONLY = 1 ] && [ -n "$SD_DEV" ] && [ "$sd_ex" != foreign ]; then
+        echo "$(t 'result: {1}' "$(t 'too little free eMMC space for Linux; the installer will offer the SD card instead (no repartitioning needed)')")"
+        echo; echo "$(t 'Nothing was written. Android version: {1}' "$(su_do 'getprop ro.build.display.id')")"
+        exit 0
+    fi
     offer_repartition   # exits, either by installing nothing or by rebooting for a second pass
 fi
-# an existing installation defines the region (it may have been created with a slightly different size)
-existing=no
-for cand in $OFF 27762098176; do
-    m=$(su_do "dd if=/dev/block/mmcblk0 bs=1 skip=$((cand + 1080)) count=2 2>/dev/null | od -An -tx1" | tr -d ' ')
-    l=$(su_do "dd if=/dev/block/mmcblk0 bs=1 skip=$((cand + 1144)) count=16 2>/dev/null" | tr -d '\000')
-    if [ "$m" = 53ef ] && [ "$l" = mu300root ]; then
-        blocks=$(su_do "dd if=/dev/block/mmcblk0 bs=1 skip=$((cand + 1028)) count=4 2>/dev/null | od -An -tu4" | tr -d ' ')
-        OFF=$cand; SIZE=$((blocks * 4096)); existing=yes; break
-    fi
-done
+region_find_existing
 echo "$(t 'Linux region: offset {1}, {2}, existing mu300root filesystem: {3}' "$OFF" "$(gib $SIZE)" "$(t "$existing")")"
+INTERNAL_EXISTS=0; [ $existing = yes ] && INTERNAL_EXISTS=1; INT_SIZE=
+if [ $SD_MODE = 1 ]; then
+    # from here on SIZE and existing describe the card; OFF and INT_SIZE keep the internal region for the marker
+    INT_SIZE=$SIZE; SIZE=$SD_BYTES; existing=$(sd_existing); DIRTY=0
+    echo "$(t 'Linux filesystem: SD card {1}, {2}, existing mu300sd filesystem: {3}' "$SD_DEV" "$(gib $SIZE)" "$(t "$existing")")"
+fi
 # unpartitioned space should be unused: sample 16 x 1 MiB across the region and count those with data. Empty is
 # 0x00 or 0xFF: an eMMC reads back what its erase leaves (EXT_CSD ERASED_MEM_CONT), and on some F50s that is 0xFF -
 # counted as data, a region that was never written stopped the install with "not empty".
 DIRTY=0
-if [ $existing = no ]; then
-    step=$(( SIZE / 1048576 / 16 ))
-    probe=""; i=0
-    while [ $i -lt 16 ]; do probe="$probe $(( OFF / 1048576 + i * step ))"; i=$((i + 1)); done
-    DIRTY=$(su_do "n=0; for s in $probe; do c=\$(dd if=/dev/block/mmcblk0 bs=1048576 skip=\$s count=1 2>/dev/null | tr -d \"\\000\\377\" | wc -c); [ \$c -gt 0 ] && n=\$((n + 1)); done; echo \$n")
+if [ $SD_MODE = 0 ] && [ $existing = no ]; then
+    region_dirty
     echo "$(t 'data check: {1} of 16 samples contain data' "$DIRTY")"
     # what is there, for a report: the first bytes of the region
     [ "$DIRTY" -gt 0 ] && echo "  $(t 'start of the region: {1}' "$(su_do "dd if=/dev/block/mmcblk0 bs=1048576 skip=$(( OFF / 1048576 )) count=1 2>/dev/null | od -An -tx1 -N32" | tr -s ' \n' ' ')")"
 fi
 if [ $existing = yes ]; then
     verdict=$(t 'OK: a MU300 Linux installation is already present (it can be kept or replaced)')
+elif [ $SD_MODE = 1 ]; then
+    verdict=$(t 'OK: the SD card will be formatted; everything on it is erased')
 elif [ "$DIRTY" -gt 0 ]; then
     verdict=$(t 'WARNING: the unpartitioned space is not empty; it may be used by this firmware. Installing overwrites it')
 elif [ $SIZE -ge $((20 * 1024 * 1024 * 1024)) ]; then
@@ -310,11 +321,36 @@ echo "  $(t '2) OpenWrt {1} (router, LuCI web UI, ~140 MiB RAM in use)' "$OWRT_V
 echo "  $(t '3) both (switch later with: mu300-os ubuntu|openwrt)')"
 [ $SIZE -lt $NEED_BOTH ] && echo "  $(t '(this device has {1}: {2})' "$(gib $SIZE)" "$([ $SIZE -ge $NEED_UBUNTU ] && t 'one system fits, not both' || t 'only OpenWrt fits')")"
 ask choice "$(t 'Choice')" 3
-case $choice in 1) OSES=ubuntu ;; 2) OSES=openwrt ;; 3) OSES="ubuntu openwrt" ;; *) die "$(t 'invalid choice')" ;; esac
-need=$NEED_OPENWRT; [ "$OSES" = ubuntu ] && need=$NEED_UBUNTU; [ "$OSES" = "ubuntu openwrt" ] && need=$NEED_BOTH
-[ $SIZE -ge $need ] || die "$(t 'that choice needs about {1} MiB and this device has {2} MiB of free space' "$((need / 1048576))" "$((SIZE / 1048576))")"
-BOOT_OS=${OSES%% *}
-[ "$choice" = 3 ] && { ask BOOT_OS "$(t 'Which one should boot (ubuntu/openwrt)')" ubuntu; case $BOOT_OS in ubuntu|openwrt) ;; *) die "$(t 'invalid system')" ;; esac; }
+# --- choose-systems begin
+# choose_systems: OSES from $choice (1 Ubuntu, 2 OpenWrt, 3 both); OpenWrt is asked which one (MU300_OPENWRT=plain|luci
+# answers without asking), "openwrt-luci" then stands in OSES instead of "openwrt"; BOOT_OS is the system that boots.
+choose_systems() {
+    case $choice in 1) OSES=ubuntu ;; 2) OSES=openwrt ;; 3) OSES="ubuntu openwrt" ;; *) die "$(t 'invalid choice')" ;; esac
+    case " $OSES " in *" openwrt "*)
+        case ${MU300_OPENWRT:-} in
+            plain) _w=1 ;;
+            luci) _w=2 ;;
+            '')
+                say "$(t 'Which OpenWrt?')"
+                echo "  $(t '1) OpenWrt {1}: the standard LuCI web interface' "$OWRT_VER")"
+                echo "  $(t '2) OpenWrt {1} with the MU300 control panel: dashboard, cellular locks, SMS, AT terminal, USB modes (by kanoqwq)' "$OWRT_VER")"
+                ask _w "$(t 'Choice')" 1 ;;
+            *) die "$(t 'MU300_OPENWRT must be plain or luci')" ;;
+        esac
+        case $_w in 1) ;; 2) OSES=$(echo "$OSES" | sed 's/openwrt/openwrt-luci/') ;; *) die "$(t 'invalid choice')" ;; esac ;;
+    esac
+    need=$NEED_OPENWRT; [ "$OSES" = ubuntu ] && need=$NEED_UBUNTU
+    case $OSES in "ubuntu openwrt"*) need=$NEED_BOTH ;; esac
+    [ $SIZE -ge $need ] || die "$(t 'that choice needs about {1} MiB and this device has {2} MiB of free space' "$((need / 1048576))" "$((SIZE / 1048576))")"
+    BOOT_OS=${OSES%% *}
+    case $OSES in *" "*)
+        _names=$(echo "$OSES" | tr ' ' '/')
+        ask BOOT_OS "$(t 'Which one should boot ({1})' "$_names")" "$BOOT_OS"
+        case " $OSES " in *" $BOOT_OS "*) ;; *) die "$(t 'invalid system')" ;; esac ;;
+    esac
+}
+# --- choose-systems end
+choose_systems
 UBUNTU=24.04
 case " $OSES " in *" ubuntu "*) if [ $MODE = prebuilt ]; then
     say "$(t 'Which Ubuntu?')"
@@ -349,6 +385,11 @@ fi
 ask hs "$(t "Copy Android's hotspot name and password to Linux? (yes/no)")" yes  # kept as-is when updating
 IMPORT_HOTSPOT=0; [ "$hs" = yes ] && IMPORT_HOTSPOT=1
 ask gpu "$(t 'Include the Mali GPU (OpenCL) userspace (~90 MiB)? (yes/no)')" yes
+# the VPN engines are not part of the systems: an extra that goes onto the Linux partition only when wanted
+echo "  $(t 'The VPN (mu300-vpn) needs the vpn extra: Xray and sing-box. It can also be added later on the device:')"
+echo "    sudo mu300-extra install vpn"
+ask vx "$(t 'Install the VPN extra (about 40 MB more to download, 120 MB on the device)? (yes/no)')" no
+EXTRA_VPN=
 KERNEL=5.4
 if [ $MODE = prebuilt ]; then
     say "$(t 'Which kernel?')"
@@ -389,6 +430,10 @@ else
     esac
     # a new /ubuntu replaces an Ubuntu installed directly in the filesystem root (first-generation layout)
     case " $OSES " in *" ubuntu "*) [ $FORMAT = 0 ] && WIPE_LEGACY=1 ;; esac
+fi
+if [ $SD_MODE = 1 ] && [ $FORMAT = 1 ]; then
+    ask erase "$(t 'Everything on the SD card ({1}, {2}) will be erased. Type ERASE to continue' "$SD_DEV" "$(gib $SIZE)")" no
+    [ "$erase" = ERASE ] || die "$(t 'cancelled')"
 fi
 printf '%s: ' "$(t 'Password for the "ubuntu" user (Ubuntu) and "root" (OpenWrt)')"
 [ -t 0 ] && stty -echo; read -r pw1; printf '\n%s: ' "$(t 'Repeat')"; read -r pw2; [ -t 0 ] && stty echo; echo
@@ -442,6 +487,14 @@ curl -fsSL -o "$REL/SHA256SUMS" "$base/SHA256SUMS" || die "$(t 'cannot download 
 files=mu300-kernel.tar.gz
 [ "$KERNEL" = 5.4 ] || files="$files mu300-kernel-$KERNEL.tar.gz"
 for os in $OSES; do files="$files $(rootfs_file $os)"; done
+if [ "$vx" = yes ]; then
+    # from the same release and SHA256SUMS; a release from before extras still has the engines in its images
+    if awk '$2 == "mu300-extra-vpn.tar.gz" || $2 == "*mu300-extra-vpn.tar.gz" {f = 1} END {exit !f}' "$REL/SHA256SUMS"; then
+        files="$files mu300-extra-vpn.tar.gz"; EXTRA_VPN=$REL/mu300-extra-vpn.tar.gz
+    else
+        echo "  $(t 'release {1} has no vpn extra: its systems still carry the VPN engines' "$RELEASE")"
+    fi
+fi
 for f in $files; do
     want=$(awk -v f="$f" '$2 == f || $2 == "*" f {print $1}' "$REL/SHA256SUMS")
     [ -n "$want" ] || die "$(t '{1} is not part of release {2}' "$f" "$RELEASE")$([ "$f" = "mu300-kernel-$KERNEL.tar.gz" ] && [ "$KERNEL" != 5.4 ] && echo " $(t '(choose kernel 5.4, or a newer release)')")"
@@ -466,6 +519,7 @@ if [ "$KERNEL" != 5.4 ]; then
     [ -s "$KMAIN/Image" ] && [ -s "$KMAIN/ramdisk-generic.lz4" ] && [ -s "$KMAIN/kernel.release" ] || die "$(t '{1} is incomplete' "mu300-kernel-$KERNEL.tar.gz")"
     # a bundle names the devices it runs on; older mainline kernels do not bring up the U30 Air's USB (FINDINGS 33c)
     [ $DEVICE = f50 ] || grep -qw $DEVICE "$KMAIN/devices" 2>/dev/null || die "$(t 'release {1} does not support this device yet; use a newer one' "$RELEASE")"
+    sd_kernel_ok "$KMAIN" || die "$(t 'the {1} kernel of release {2} cannot read the SD card: choose kernel 5.4, a newer release, or internal storage (MU300_STORAGE=internal)' "$KERNEL" "$RELEASE")"
 fi
 say "$(t 'Adding the vendor files from your device to the images')"
 for os in $OSES; do
@@ -487,10 +541,11 @@ docker run --rm -v "$TOP/tools":/src:ro -v "$WORK/tools":/o mu300-kbuild sh -c '
   gcc -O2 -static -o /o/logdw/logdw /src/logdw/logdw.c &&
   gcc -O2 -static -o /o/bt-init/mu300-bt-init /src/bt-init/mu300-bt-init.c &&
   mkdir -p /o/keys && gcc -O2 -static -o /o/keys/mu300-keys /src/keys/mu300-keys.c'
-# the VPN engines, as tools/make-release.sh puts them into the published images (without them mu300-vpn only
-# fails with "xray: not found")
-[ -s "$WORK/sing-box" ] || sh "$TOP/tools/fetch-sing-box.sh" "$WORK/sing-box"
-[ -s "$WORK/xray" ] && [ -s "$WORK/hev-socks5-tunnel" ] || sh "$TOP/tools/fetch-xray.sh" "$WORK"
+# the VPN engines: the vpn extra, as tools/make-release.sh builds it (not part of the systems)
+if [ "$vx" = yes ]; then
+    [ -s "$WORK/mu300-extra-vpn.tar.gz" ] || sh "$TOP/tools/make-extra.sh" vpn "$WORK/mu300-extra-vpn.tar.gz"
+    EXTRA_VPN=$WORK/mu300-extra-vpn.tar.gz
+fi
 if [ -d "$WORK/android-gpu-subset" ]; then
     L=$(mktemp -d "$WORK/cllibs.XXXX")
     cp "$WORK/android-gpu-subset/vendor/lib64/libOpenCL.so" "$WORK/android-subset/apex/com.android.runtime/lib64/bionic/libc.so" \
@@ -512,15 +567,14 @@ case " $OSES " in *" ubuntu "*) reuse ubuntu || {
     # shellcheck disable=SC2086
     docker run --rm -v "$B":/w -v "$WORK/out/modules":/kmods:ro -v "$WORK/out":/kout:ro -v "$WORK/firmware":/firmware:ro \
       -v "$WORK/android-subset":/android-subset:ro -v "$WORK/tools/logdw/logdw":/logdw:ro \
-      -v "$WORK/tools/bt-init/mu300-bt-init":/bt-init:ro -v "$WORK/tools/keys/mu300-keys":/keys:ro -v "$WORK/sing-box":/sing-box:ro -v "$WORK/xray":/xray:ro \
-      -v "$WORK/hev-socks5-tunnel":/hev-socks5-tunnel:ro $gpuargs mu300-ubuntu:24.04 bash /w/assemble.sh >/dev/null
+      -v "$WORK/tools/bt-init/mu300-bt-init":/bt-init:ro -v "$WORK/tools/keys/mu300-keys":/keys:ro \
+      $gpuargs mu300-ubuntu:24.04 bash /w/assemble.sh >/dev/null
     mv "$B/mu300-ubuntu-24.04-rootfs.tar.gz" "$WORK/mu300-ubuntu.tar.gz"; rm -rf "$B"; } ;;
 esac
-case " $OSES " in *" openwrt "*) reuse openwrt || {
+for os in $OSES; do case $os in openwrt|openwrt-*) reuse $os || {
     say "$(t 'Building the OpenWrt root filesystem')"
-    MU300_INPUTS="$WORK" sh "$TOP/openwrt/build-rootfs.sh" mu300-openwrt-rootfs.tar.gz >/dev/null
-    mv "$TOP/openwrt/mu300-openwrt-rootfs.tar.gz" "$WORK/mu300-openwrt.tar.gz"; } ;;
-esac
+    MU300_SYSTEM=$os MU300_INPUTS="$WORK" sh "$TOP/openwrt/build-rootfs.sh" mu300-$os-rootfs.tar.gz >/dev/null
+    mv "$TOP/openwrt/mu300-$os-rootfs.tar.gz" "$WORK/mu300-$os.tar.gz"; } ;; esac; done
 BUSYBOX=$WORK/busybox; LOGDW=$WORK/tools/logdw/logdw
 PWHASH=$(printf '%s' "$pw1" | docker run --rm -i mu300-ubuntu:24.04 openssl passwd -6 -stdin)
 fi
@@ -541,11 +595,16 @@ say "$(t 'Ready to install')"
 echo "  $(t 'source:         {1}' "$([ $MODE = prebuilt ] && t 'prebuilt release {1} + vendor files from this device' "$RELEASE" || t 'local build')")"
 echo "  $(t 'systems:        {1} (boots: {2})' "$OSES$(case " $OSES " in (*" ubuntu "*) echo " (Ubuntu $UBUNTU)" ;; esac)" "$BOOT_OS")"
 echo "  $(t 'kernel:         {1}' "$KERNEL$([ -n "$KMAIN" ] && echo " (mainline, $(cat "$KMAIN/kernel.release"))")")"
+echo "  $(t 'extras:         {1}' "$([ -n "$EXTRA_VPN" ] && echo vpn || t 'none')")"
 echo "  $(t 'default boot:   {1}' "$([ $DEFAULT_LINUX = 1 ] && t 'Linux (Android after {1} failed boots in a row)' "$BOOT_ATTEMPTS" || t 'Android, Linux on demand')")"
-echo "  $(t 'filesystem:     {1}' "$([ $FORMAT = 1 ] && t 'CREATE new ext4 (erases the Linux region)' || t 'keep existing')")"
+echo "  $(t 'filesystem:     {1}' "$([ $FORMAT = 0 ] && t 'keep existing' || { [ $SD_MODE = 1 ] && t 'CREATE new ext4 (erases the SD card)' || t 'CREATE new ext4 (erases the Linux region)'; })")"
 [ $UPDATE = 1 ] && echo "  $(t 'update:         settings and user data of the chosen systems are kept, everything else is replaced')"
 [ $UPDATE = 0 ] && [ $FORMAT = 0 ] && echo "  $(t 'note:           the chosen systems are installed fresh; their previous files and settings are replaced')"
-echo "  $(t 'writes:         Linux region at offset {1}, boot_b, 32 bytes of misc (boot_a, GPT and userdata are not touched)' "$OFF")"
+if [ $SD_MODE = 1 ]; then
+    echo "  $(t 'writes:         SD card {1}, boot_b, 32 bytes of misc (the eMMC region, boot_a, GPT and userdata are not touched)' "$SD_DEV")"
+else
+    echo "  $(t 'writes:         Linux region at offset {1}, boot_b, 32 bytes of misc (boot_a, GPT and userdata are not touched)' "$OFF")"
+fi
 ask confirm "$(t 'Type INSTALL to continue')" no
 [ "$confirm" = INSTALL ] || die "$(t 'cancelled')"
 
@@ -559,9 +618,10 @@ for os in $OSES; do
         adb push "$WORK/mu300-$os.tar.gz" $T/mu300-$os.tar.gz >/dev/null
     fi
 done
+# android-install.sh puts every pushed mu300-extra-<name>.tar.gz onto the Linux partition (extra/<name>)
+[ -z "$EXTRA_VPN" ] || adb push "$EXTRA_VPN" $T/mu300-extra-vpn.tar.gz >/dev/null
 env=$(mktemp)
-printf 'OFF=%s\nSIZE=%s\nOFF_S=%s\nSIZE_S=%s\nFORMAT=%s\nOSES="%s"\nWIPE_LEGACY=%s\nUPDATE=%s\nBOOT_OS=%s\nDEFAULT_LINUX=%s\nBOOT_ATTEMPTS=%s\nIMPORT_HOTSPOT=%s\nKERNEL=%s\nPWHASH='"'"'%s'"'"'\n' \
-  "$OFF" "$SIZE" "$((OFF / 512))" "$((SIZE / 512))" "$FORMAT" "$OSES" "$WIPE_LEGACY" "$UPDATE" "$BOOT_OS" "$DEFAULT_LINUX" "$BOOT_ATTEMPTS" "$IMPORT_HOTSPOT" "$KERNEL" "$PWHASH" > "$env"
+write_install_env > "$env"
 adb push "$env" $T/mu300-install.env >/dev/null; rm -f "$env"
 su_do "sh $T/android-install.sh" | tee "$WORK/device-install.log"
 grep -q MU300-INSTALL-OK "$WORK/device-install.log" || die "$(t 'installation on the device failed; boot_b and misc were not changed')"
@@ -582,6 +642,6 @@ sh "$TOP/tools/install-magisk-module.sh" || echo "  $(t '(skipped; the installer
 say "$(t 'Done. Rebooting into {1}' "$BOOT_OS")"
 IP=192.168.77.1; [ $DEVICE = u30air ] && IP=192.168.78.1
 echo "  $(t 'USB network: {1}   SSH: {2}' $IP "$([ "$BOOT_OS" = ubuntu ] && echo ubuntu@$IP || echo root@$IP, LuCI http://$IP)")"
-echo "  $(t 'switch systems: mu300-os ubuntu|openwrt   back to Android: mu300-next-boot android')"
+echo "  $(t 'switch systems: mu300-os {1}   back to Android: mu300-next-boot android' "$(echo "$OSES" | tr ' ' '|')")"
 echo "  $(t 'back to Linux from Android (with Magisk): su -c mu300-linux')"
 adb reboot </dev/null

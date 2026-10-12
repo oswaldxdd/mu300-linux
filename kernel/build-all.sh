@@ -17,7 +17,15 @@ MODULES_REV=4381465ccaf87fcf3215b9cd42f4a685df40e5e0
 docker build -q -t mu300-kbuild "$TOP/kernel" >/dev/null
 docker volume create "$VOL" >/dev/null
 W=$(mktemp -d)
-trap 'rm -rf "$W"' EXIT
+# on a Linux docker the container writes as root: the outputs are handed to the user below, and a cleanup that
+# still cannot remove something does not fail the build that has already copied them out. The config merge logs and
+# the rejected fragment options go with the scratch copy, unless MU300_KBUILD_LOGS names a directory to keep them in
+# (the release workflow does, for a failed build).
+cleanup() {
+    [ -z "${MU300_KBUILD_LOGS:-}" ] || { mkdir -p "$MU300_KBUILD_LOGS" && cp "$W"/*.log "$W"/fragment-rejected.txt "$MU300_KBUILD_LOGS/"; } 2>/dev/null || true
+    rm -rf "$W" 2>/dev/null || true
+}
+trap cleanup EXIT
 # build-linux.sh writes its logs next to the config: give it a scratch copy of kernel/
 cp -R "$TOP/kernel/." "$W/"
 cp "$TOP/kernel/f50-stock-B09.config" "$W/device.config"
@@ -45,7 +53,7 @@ echo "==> sources"
 fetch /src/zte-u30air "$KERNEL_REPO" "$KERNEL_REV"
 cd /src/zte-u30air
 # the tree is the pinned commit plus exactly these patches: reapply from a clean checkout whenever they change
-KPATCHES="bluetooth-marlin3-link-policy of-reserved-mem-skip of-reserved-mem-add regdb-wens-certificate sipa-delegate-einprogress wcn-pcie-scan-timeout sipc-base-addr-attr"
+KPATCHES="bluetooth-marlin3-link-policy of-reserved-mem-skip of-reserved-mem-add regdb-wens-certificate sipa-delegate-einprogress wcn-pcie-scan-timeout sipc-base-addr-attr sipa-delegate-pm-runtime sipc-debug-once sprdwcn-mbuf-pool-deinit-null"
 sum=$(cd /work/patches && cat $(for p in $KPATCHES; do echo $p.patch; done) | sha256sum | cut -d" " -f1)
 if [ "$(cat .mu300-patches 2>/dev/null)" != "$sum" ]; then
     git checkout -q -f "$KERNEL_REV" && git clean -q -fdx -e .mu300-patches
@@ -55,10 +63,18 @@ fi
 echo -gb50db5b6224c > .scmversion
 M=kernel_modules/kernel5.4
 fetch /src/realme "$MODULES_REPO" "$MODULES_REV" $M/wcn/wlan/wlan_combo $M/wcn/bluetooth/driver $M/gpu/natt/mali
-[ -d /src/ext-wlan_combo ] || cp -r /src/realme/$M/wcn/wlan/wlan_combo /src/ext-wlan_combo
-[ -d /src/ext-sprdbt ] || cp -r /src/realme/$M/wcn/bluetooth/driver /src/ext-sprdbt
-# like build-wlan.sh does for Wi-Fi: the MU300 fixes of the Bluetooth driver, skipped when already applied
-(cd /src/ext-sprdbt && for p in /work/patches/sprdbt-*.patch; do patch -p1 --forward -s < "$p" || true; done)
+# The driver trees are the pristine copy plus exactly their patches, like the kernel above: a copy patched in place
+# cannot take a changed patch set (a second run found wlan_combo-pcie-post-init-retry neither applied nor reverted,
+# because a later patch had moved its lines), so the copy is remade whenever the patch files change.
+patched_copy() { # patched_copy DEST SOURCE PATCH-GLOB
+    local sum; sum=$(cat /work/patches/$3 | sha256sum | cut -d" " -f1)
+    [ "$(cat "$1/.mu300-patches" 2>/dev/null)" = "$sum" ] && return 0
+    rm -rf "$1" && cp -r "$2" "$1"
+    (cd "$1" && for p in /work/patches/$3; do patch -p1 -s -f < "$p"; done)
+    echo "$sum" > "$1/.mu300-patches"
+}
+patched_copy /src/ext-wlan_combo /src/realme/$M/wcn/wlan/wlan_combo 'wlan_combo-*.patch'
+patched_copy /src/ext-sprdbt /src/realme/$M/wcn/bluetooth/driver 'sprdbt-*.patch'
 [ -d /src/ext-mali ] || cp -r /src/realme/$M/gpu/natt/mali /src/ext-mali
 
 echo "==> kernel"
@@ -79,6 +95,7 @@ echo "$(ls /work/out/modules | wc -l) modules, $(strings /work/out/Image | grep 
 echo "==> ZTE U30 Air modules"
 bash /work/build-u30air.sh
 '
+docker run --rm -v "$W":/work mu300-kbuild chown -R "$(id -u):$(id -g)" /work/out
 mkdir -p "$OUT"
 rm -rf "$OUT/modules" "$OUT/modules-u30air"
 cp -R "$W/out/." "$OUT/"

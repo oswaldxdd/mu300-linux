@@ -1,4 +1,18 @@
-# Linux on the ZTE F50 / MU300 and U30 Air
+# U30 Air OpenWrt charge2
+
+此 `u30air` 分支根目录现在默认构建已发布的 **v2026.10.15-charge2**：OpenWrt 25.12.5 + Linux **7.2.9-u30air-charge2**，仅将此默认固件用于 ZTE U30 Air。用户已确认原发布版本可以稳定运行。
+
+- 保留原生 SGM41511 充电与 JEITA 保护、内核执行的 0–100% 充电上限、SOC 一位小数显示、受条件约束的 FCC 学习。
+- 保留 Type-C/PD 输入识别、外部供电下手动 Host、关闭 OTG boost、RTL8153 网卡与 WiFi 永久 MAC 修复。
+- 默认源码位于根目录 `upstream/`、`openwrt/`、`rootfs/` 等目录；`experimental/u30air-charge2/source/` 保留为发布时的冻结快照。
+
+构建及打包入口见 **[BUILD-CHARGE2.md](BUILD-CHARGE2.md)**。安装请下载 **[charge2 发布包](https://github.com/oswaldxdd/mu300-linux/releases/tag/v2026.10.15-charge2)**，使用包内 `install-u30air-host.ps1`；以下保留的通用安装说明和根目录 `install.ps1` 不会自动选择 charge2。日常构建默认内核为 7.2.9，内核包默认仅列 `u30air`。
+
+本次更新提升源码和默认构建入口，不重新发布固件或改写原发布标签。0.1% 是显示分辨率；完整容量学习周期及全区间 SOC 精度仍以既有发布说明的验证边界为准。
+
+---
+
+# 原项目通用说明
 
 [![Latest Release](https://img.shields.io/github/v/release/dikeckaan/mu300-linux?logo=github)](https://github.com/dikeckaan/mu300-linux/releases/latest)
 [![Total Downloads](https://img.shields.io/github/downloads/dikeckaan/mu300-linux/total?color=blue&logo=github)](https://github.com/dikeckaan/mu300-linux/releases)

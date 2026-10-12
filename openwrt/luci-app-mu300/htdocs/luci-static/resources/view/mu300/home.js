@@ -213,6 +213,7 @@ return view.extend({
     <button class="mud-btn warn" id="mud-btn-modem">${_('Restart modem')}</button>
     <button class="mud-btn warn" id="mud-btn-reboot">${_('Restart device')}</button>
     <button class="mud-btn warn" id="mud-btn-android">${_('Switch to Android')}</button>
+    <button class="mud-btn" id="mud-btn-bootlock">${_('Lock Linux')}</button>
   </div>
 </div>
 <div class="mud-sec">
@@ -281,6 +282,20 @@ return view.extend({
 				  _('Or do nothing: after five boots that do not finish, it falls back automatically.') ].join('\n'),
 				{ danger: true, okText: _('Switch and reboot') })
 				.then(function(go) { if (go) act('os', 'android', _('Preparing Android boot and rebooting…'), btn); });
+		};
+		q('btn-bootlock').onclick = function() {
+			var btn = this;
+			var locked = !!(self.lastInfo && self.lastInfo.capabilities && self.lastInfo.capabilities.bootlock);
+			(locked
+				? M.confirmBox(_('Unlock Linux'),
+					_('After five boots in a row that do not finish, the device falls back to Android again.'),
+					{ okText: _('Unlock') })
+				: M.confirmBox(_('Lock Linux'),
+					[ _('The device will never switch to Android by itself, not even after failed boots: Android only from this page (Switch to Android) or with mu300-next-boot android.'),
+					  _('A new kernel from an update still gets its first boots on trial, and locks again once one of them succeeds.'),
+					  _('If the system itself no longer starts, the device waits on USB (telnet) instead of going to Android.') ].join('\n'),
+					{ danger: true, okText: _('Lock') })
+			).then(function(go) { if (go) act('os', locked ? 'unlock' : 'lock', null, btn); });
 		};
 		q('reveal').onclick = function() {
 			self.identShown = !self.identShown;
@@ -560,12 +575,13 @@ return view.extend({
 			var pw = p.w != null ? Number(p.w).toFixed(1) : null;
 			if (pdir > 0) parts.push(pw != null ? _('charging %s W').format(pw) : _('charging'));
 			else if (pdir < 0) parts.push(pw != null ? _('drawing %s W').format(pw) : p.usb ? _('not charging') : _('on battery'));
-			else if (pst === 'Full' || (p.usb && p.capacity >= 100)) parts.push(_('full'));
+			else if (pst === 'Full') parts.push(_('full'));
 			else if (pst === 'Not charging') parts.push(_('not charging'));
 			if (p.volt != null && p.capacity != null) parts.push(p.volt + ' V');
 			if (p.usb) parts.push(p.in_w != null ? _('USB in %s W').format(Number(p.in_w).toFixed(1)) +
 				(p.in_volt != null ? ' (' + p.in_volt + ' V)' : '') : 'USB');
-			M.set('batt', p.capacity != null ? p.capacity + '%' : (p.volt != null ? p.volt + ' V' : '--'));
+			var pcap = p.capacity_tenth != null ? (Number(p.capacity_tenth) / 10).toFixed(1) : p.capacity;
+			M.set('batt', pcap != null ? pcap + '%' : (p.volt != null ? p.volt + ' V' : '--'));
 			M.set('batt-l', parts.join(' · '));
 		}
 		M.set('model', i.model || '--');
@@ -573,6 +589,13 @@ return view.extend({
 		M.set('modem', (i.modem && i.modem.alive ? _('Online') : _('No response')) + (i.modem && i.modem.atd ? '' : ' · ' + _('AT adapter unavailable')));
 		var androidBtn = M.v('btn-android');
 		if (androidBtn) androidBtn.style.display = i.capabilities && i.capabilities.dualboot ? '' : 'none';
+		var lockBtn = M.v('btn-bootlock');
+		if (lockBtn) {
+			lockBtn.style.display = i.capabilities && i.capabilities.dualboot ? '' : 'none';
+			var lk = !!(i.capabilities && i.capabilities.bootlock);
+			lockBtn.className = 'mud-btn' + (lk ? ' on' : '');
+			lockBtn.textContent = lk ? _('Linux locked') : _('Lock Linux');
+		}
 
 		var b;
 		b = M.v('btn-data'); b.className = 'mud-btn' + (w.up ? ' on' : ''); b.textContent = _('Data connection');

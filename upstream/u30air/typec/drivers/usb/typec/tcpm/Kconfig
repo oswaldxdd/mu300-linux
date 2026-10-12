@@ -1,0 +1,16 @@
+config SPRD_TYPEC_TCPM
+	tristate "Unisoc USB Type-C and Power Delivery policy manager"
+	depends on USB && TYPEC
+	select USB_ROLE_SWITCH
+	select POWER_SUPPLY
+	help
+	  Type-C and USB Power Delivery policy manager used by Unisoc
+	  SC27xx/UMP96xx controllers.
+
+config SC27XX_PD
+	tristate "Unisoc SC27xx/UMP96xx USB Power Delivery controller"
+	depends on SPRD_TYPEC_TCPM && EXTCON && REGULATOR && NVMEM
+	depends on MFD_SC27XX_PMIC || COMPILE_TEST
+	select MFD_SYSCON
+	help
+	  USB Power Delivery controller for the UMP9620 and related PMICs.

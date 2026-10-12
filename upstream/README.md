@@ -1,6 +1,6 @@
 # Mainline (LTS) kernel on the MU300
 
-Mainline **Linux 6.18.54** (the current longterm series) runs Ubuntu 24.04 and OpenWrt 25.12 on the ZTE F50 /
+Mainline **Linux 6.18.55** (the current longterm series) runs Ubuntu 24.04 and OpenWrt 25.12 on the ZTE F50 /
 MU300 (Unisoc UMS9620): all 8 CPUs (4×A55, 4×A76), eMMC, USB NCM + ACM, the 5 GHz hotspot, Bluetooth, the modem
 with mobile data (downlink and uplink), SMS, the VPN, the Mali GPU, thermal/cpufreq, the PMIC watchdog and
 reboot. `docs/FINDINGS.md` 31-31f has what it took and what is still open.
@@ -27,7 +27,7 @@ merged) describes the same GIC/UART/timer layout; this device is derived from th
 ## Build and test
 ```sh
 docker build -t mu300-mainline-build upstream/
-docker volume create mu300-mainline   # build.sh fetches linux-$KV (default 6.18.54) into it, checked against kernel.org
+docker volume create mu300-mainline   # build.sh fetches linux-$KV (default 6.18.55) into it, checked against kernel.org
 docker run --rm -v mu300-mainline:/src -v "$PWD/upstream":/work mu300-mainline-build bash /work/build.sh
 docker run --rm -v mu300-mainline:/src -v "$PWD/upstream":/work mu300-mainline-build bash /work/build-modules.sh
 upstream/make-bundle.sh mu300-kernel-6.18.tar.gz        # Image for LK, generic ramdisk segment, modules
@@ -36,6 +36,12 @@ upstream/make-bundle.sh mu300-kernel-6.18.tar.gz        # Image for LK, generic 
 The build stops on anything that drifts silently: a patch that neither applies nor is applied, a config option
 Kconfig does not take (unless listed in `config-ignored.txt`), a port edit whose anchor moved, or a module whose
 vermagic does not match the kernel. `tools/make-release.sh` packages the same bundle as `mu300-kernel-6.18.tar.gz`.
+
+The config is allnoconfig plus `mu300-mainline.config`: what the board and the boot need is built in, along with
+KVM (`/dev/kvm`; the CPUs start at EL2); what only matters once used - netfilter extras, tunnels, IPsec, tc,
+filesystems, USB modems/adapters/Wi-Fi sticks, device mapper - is a module. `build-modules.sh` installs the
+kernel's own modules (stripped) flat into `out/modules` next to the vendor ones, and the bundle ships them all;
+`mu300-update` indexes them on Ubuntu (depmod) and OpenWrt loads them by name (FINDINGS 31o).
 
 The bring-up path of old (hand-built image, `init-bringup`, `boot/flash-trial.sh`) still works for experiments:
 ```sh
@@ -51,7 +57,7 @@ boot/flash-trial.sh boot-mainline.img      # slot b only, falls back to Android
 
 ## Newer kernels (7.x)
 
-The whole port - kernel and all 31 out-of-tree modules - also builds against **7.2.8**, the newest stable release
+The whole port - kernel and all 31 out-of-tree modules - also builds against **7.2.9**, the newest stable release
 (2026-09-26), from the same sources as 6.18, and runs on the device: four boots out of four (2026-09-27) with the
 Wi-Fi access point, mobile data (18.7 MB/s), Bluetooth, the Mali GPU, cpufreq and the modem's AT channel working,
 and no warning or oops in the log. (7.2 is a stable, not a longterm release: 6.18 stays the base, 7.x is how the
@@ -67,8 +73,14 @@ next jump is kept small.) One source serves both:
   release, so the next break shows up as a red run rather than at the next jump.
 
 Releases carry it as `mu300-kernel-7.2.tar.gz`: `sudo mu300-update kernel 7.2` on the device, or choice 3 in the
-installer. It is built next to 6.18: `OUTDIR=out-7.2 KV=7.2.8` for `build.sh` and `build-modules.sh`, and
+installer. It is built next to 6.18: `OUTDIR=out-7.2 KV=7.2.9` for `build.sh` and `build-modules.sh`, and
 `MU300_UPSTREAM_OUT=upstream/out-7.2` for `make-bundle.sh`; `tools/make-release.sh` packs both.
+
+The U30 Air-only 7.2 charging, guarded external-input Host, SOC tenths and FCC learning integration is documented
+in [`u30air/README.md`](u30air/README.md). It replaces the legacy FGU only for 7.2.x; 6.18 and F50 keep their own
+release paths. Host requires the native SGM41511 driver, external input and OTG boost off, and the default role is
+manual Device. USB Ethernet adapters require explicit LAN-bridge selection in the panel. Source tests do not
+substitute for device validation.
 
 ## Remaining mainline work (as of 2026-09-26)
 
@@ -103,7 +115,7 @@ context with an address on `sipa_eth0`. Measured on the device:
 AT         -> OK                                   AT+CFUN?  -> +CFUN: 1
 AT+CPIN?   -> +CPIN: READY                         AT+CSQ    -> +CSQ: 37,20
 AT+CEREG?  -> +CEREG: 2,1,"C300","00E07F53",13     AT+COPS?  -> +COPS: 0,2,"28602",13
-mobile data up on sipa_eth0 (28602)                sipa_eth0  UP  10.x.x.x/8
+mobile data up on sipa_eth0                        sipa_eth0  UP  10.x.x.x/8
 ```
 
 ### What was wrong: the shared memory was mapped write-back

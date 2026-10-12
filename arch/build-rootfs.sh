@@ -45,7 +45,7 @@ pacman -Syu --noconfirm --needed \
     systemd systemd-sysvcompat dbus kmod iproute2 iputils net-tools nftables dnsmasq ethtool \
     openssh wpa_supplicant hostapd iw wireless-regdb bluez bluez-utils rfkill \
     ca-certificates curl wget nano less htop sudo bash-completion \
-    e2fsprogs dosfstools file procps-ng psmisc lsof usbutils pciutils python >/dev/null
+    e2fsprogs dosfstools file procps-ng psmisc lsof usbutils pciutils python jq wireguard-tools >/dev/null
 # the generic Arch ARM image carries its own kernel and the full linux-firmware set (about 1.5 GB); this device
 # boots the vendor 5.4 kernel from the boot image and gets its firmware from the Android side
 pacman -Rns --noconfirm linux-aarch64 linux-firmware linux-firmware-whence 2>/dev/null >/dev/null || true
@@ -71,6 +71,7 @@ if [ -d /in/android-subset ]; then
     mkdir -p $R/opt/mu300/android && cp -a /in/android-subset/. $R/opt/mu300/android/
     mv $R/opt/mu300/android/dev/__properties__ $R/opt/mu300/android/dev-properties && rmdir $R/opt/mu300/android/dev
 fi
+# cp -an FROM/. TO/ needs GNU cp (busybox cp -n skips an existing directory without looking into it); this runs in the build containers only
 [ -d /in/android-gpu-subset ] && cp -an /in/android-gpu-subset/. $R/opt/mu300/android/
 [ -e /in/cltest ] && { mkdir -p $R/opt/mu300/android/system/bin; install -m755 /in/cltest $R/opt/mu300/android/system/bin/cltest; }
 [ -e /in/logdw ] && install -m755 /in/logdw $R/opt/mu300/bin/logdw
@@ -103,7 +104,7 @@ for u in mu300-vendor.service:sysinit.target mu300-lan.service:multi-user.target
          mu300-extra-modules.service:multi-user.target mu300-hotspot.service:multi-user.target \
          mu300-bluetooth.service:multi-user.target mu300-thermal-guard.service:multi-user.target \
          mu300-firewall.service:sysinit.target mu300-kmsg.service:sysinit.target mu300-toolkit.service:multi-user.target \
-         mu300-atd.service:multi-user.target \
+         mu300-atd.service:multi-user.target mu300-atd2.service:multi-user.target \
          systemd-networkd.service:multi-user.target systemd-resolved.service:multi-user.target; do
     svc=${u%%:*}; tgt=${u##*:}
     mkdir -p $R/etc/systemd/system/$tgt.wants

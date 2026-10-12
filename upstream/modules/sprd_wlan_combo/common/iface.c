@@ -266,6 +266,15 @@ int sprd_iface_set_power(struct sprd_hif *hif, int val)
 {
 	int ret = 0;
 
+	/*
+	 * MU300: power_cnt is atomic, the transitions behind it are not.  Probe powers the chip off after it
+	 * registered wlan0, outside RTNL, so userspace (hostapd, netifd) can open the interface meanwhile: the
+	 * open's power-on (1st count) ran start_marlin + post_init while the probe's power-off (last count) was
+	 * still in post_deinit.  post_deinit then cleared the channels and sc2355_hif.hif that post_init had just
+	 * set, stop_marlin powered the chip down, and the next RX interrupt read hif->rx_mgmt from NULL
+	 * (pcie_rx_handle+0x34, "paging request at 00000000000030b8", FINDINGS 31n).  One transition at a time.
+	 */
+	mutex_lock(&hif->power_lock);
 	if (val) {
 		sprd_wlan_power_status_sync(1, 1);
 		ret = sprd_hif_power_on(hif);
@@ -276,12 +285,14 @@ int sprd_iface_set_power(struct sprd_hif *hif, int val)
 			else if (ret == -EIO)
 				pr_err("SYNC cmd error!\n");
 
-			return ret;
+			goto out;
 		}
 		if (atomic_read(&hif->power_cnt) == 1)
 			sprd_get_fw_info(hif->priv);
 	} else
 		sprd_hif_power_off(hif);
+out:
+	mutex_unlock(&hif->power_lock);
 	return ret;
 }
 #ifdef DRV_RESET_SELF
@@ -1707,12 +1718,39 @@ static int iface_core_init(struct device *dev, struct sprd_priv *priv)
 	sprd_tcp_ack_init(priv);
 	sprd_setup_wiphy(wiphy, priv);
 	sprd_vendor_init(priv, wiphy);
+	/* netifd derives the AP BSSID from this address before creating wlan0.
+	 * Publishing zero here makes hostapd use a different authenticator
+	 * address from the firmware and breaks the WPA four-way handshake.
+	 */
+	if (!is_valid_ether_addr(priv->default_mac) &&
+	    !iface_bootargs_mac(priv->default_mac))
+		random_ether_addr(priv->default_mac);
+	ether_addr_copy(wiphy->perm_addr, priv->default_mac);
 	set_wiphy_dev(wiphy, dev);
 	ret = wiphy_register(wiphy);
 	if (ret) {
 		wiphy_err(wiphy, "failed to regitster wiphy(%d)!\n", ret);
 		goto out;
 	}
+#ifdef CONFIG_PM
+	/*
+	 * MU300: WoWLAN "any" on by default. Without a WoWLAN configuration cfg80211's wiphy_suspend() closes every
+	 * interface (cfg80211_leave_all), and the WCN PCI function, which suspends asynchronously, has usually taken
+	 * the bus down by then: CMD_CLOSE and CMD_DISCONNECT were dropped ("fail because bus done"), the firmware kept
+	 * them open, and the next close and open of Wi-Fi after the resume hit a firmware assert (mchn.c line 137)
+	 * that only a reboot cleared (FINDINGS 37). With a configuration the interfaces stay as they are; the
+	 * firmware is told about the sleep through the PCIe channel's power_notify, as before. "iw phy phy0 wowlan
+	 * disable" brings the old behaviour back. wiphy_unregister() frees it.
+	 */
+	if (!wiphy->wowlan_config) {
+		struct cfg80211_wowlan *wowlan = kzalloc(sizeof(*wowlan), GFP_KERNEL);
+
+		if (wowlan) {
+			wowlan->any = true;
+			wiphy->wowlan_config = wowlan;
+		}
+	}
+#endif
 
 	rtnl_lock();
 	wdev = sprd_add_iface(priv, "wlan%d", NL80211_IFTYPE_STATION, NULL);
@@ -1770,6 +1808,7 @@ int sprd_iface_probe(struct platform_device *pdev,
 	iface_set_priv(priv);
 	platform_set_drvdata(pdev, priv);
 	hif = &priv->hif;
+	mutex_init(&hif->power_lock);
 	hif->priv = priv;
 	hif->pdev = pdev;
 	hif->ops = hif_ops;
@@ -1792,9 +1831,10 @@ int sprd_iface_probe(struct platform_device *pdev,
 	ret = iface_core_init(&pdev->dev, priv);
 	if (ret) {
 		pr_err("%s core init failed: %d\n", __func__, ret);
+		/* MU300: power off while hif still exists (sprd_core_free frees priv, and hif with it) */
+		sprd_iface_set_power(hif, false);
 		sprd_hif_deinit(hif);
 		sprd_core_free(priv);
-		sprd_iface_set_power(hif, false);
 		return ret;
 	}
 
@@ -1802,9 +1842,9 @@ int sprd_iface_probe(struct platform_device *pdev,
 	if (ret) {
 		pr_err("%s notify init failed: %d\n", __func__, ret);
 		iface_core_deinit(priv);
+		sprd_iface_set_power(hif, false);
 		sprd_hif_deinit(hif);
 		sprd_core_free(priv);
-		sprd_iface_set_power(hif, false);
 		return ret;
 	}
 
@@ -1831,11 +1871,12 @@ int sprd_iface_remove(struct platform_device *pdev)
 
 	iface_notify_deinit(priv);
 	iface_core_deinit(priv);
+	/* MU300: power off while hif still exists (sprd_core_free frees priv, and hif and its lock with it) */
+	pr_info("Power off WCN (%d time)\n", atomic_read(&hif->power_cnt));
+	sprd_iface_set_power(hif, false);
 	sprd_hif_deinit(hif);
 	sprd_core_free(priv);
 	iface_set_priv(NULL);
-	pr_info("Power off WCN (%d time)\n", atomic_read(&hif->power_cnt));
-	sprd_iface_set_power(hif, false);
 
 	return 0;
 }

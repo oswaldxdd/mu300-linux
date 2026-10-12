@@ -1,0 +1,19 @@
+{
+  "source": "/root/u30air-native14-build-20261005/linux-7.2.8",
+  "source_kernel": "7.2.8-u30air-native14",
+  "purpose": "Restore sink-only 5V Type-C/PD source qualification omitted from the 7.2.9 integration",
+  "sha256": {
+    "drivers/usb/typec/sc27xx_typec.c": "3885b95ebb973477b11c5068867473933a8a6418032160aa31813c9c5dae72d0",
+    "drivers/usb/typec/tcpm/sc27xx_pd.c": "abdced03eb9f96eccb4b615f2f4c50e967d8f9a405cd6ce2c0343dcf2d2973ee",
+    "drivers/usb/typec/tcpm/sprd_tcpm.c": "63c9f640c0ee7cd6157919cb23b05985d25bbc06a08d8113413f389940290908",
+    "include/linux/usb/sprd_typec.h": "372cf00c04128d71a80a2f64ee1ef680ed33a7b2d0c6b434a10573ed70a4ad08",
+    "include/linux/usb/sprd_tcpm.h": "fe128213f23ecbe29a670a4207778b27b6820fd2ce9c90012f4e6a5809cb3ecc",
+    "include/linux/usb/sprd_pd.h": "a21be88b8ea9bf5be27019086ceb2468bfaef740e708aa6110d7f3a2929d6de0",
+    "include/linux/usb/sprd_pd_ado.h": "dceb1e14b8bbecf9661b3eeff4957ef428a30e5a12772d9ba07570e4deb00842",
+    "include/linux/usb/sprd_pd_bdo.h": "d2f174968f2e8c5620b73085cad66d1333890862fbdcadc31e0cdf4a205989a7",
+    "include/linux/usb/sprd_pd_ext_sdb.h": "8e349dbc7e5c59396cd94fae04843c5f8519098e8de0e70d8cf08e44b7115b9f",
+    "include/linux/usb/sprd_pd_vdo.h": "78ab2d35a31a60fa8cd2f889fc748c5d724d70e369c624e9b150dbe195353edf",
+    "include/linux/usb/sprd_commonphy.h": "96e723b326fe91429e29f57dabd802ca8bda99c4d90780132af668b4d436129a"
+  },
+  "not_a_hardware_validation_of_this_new_build": true
+}

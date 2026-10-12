@@ -1,0 +1,23 @@
+name: U30 Air charge2 source checks
+on:
+  push:
+    branches: [u30air]
+  pull_request:
+    branches: [u30air]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install policy test dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq gcc busybox
+      - name: Native charge2 policies and production source adapters
+        run: python3 upstream/u30air/run-tests.py
+      - name: Build entry syntax and assembler CLI
+        run: |
+          bash -n upstream/build.sh upstream/build-modules.sh
+          sh -n upstream/make-bundle.sh
+          python3 build-full-release.py --help
