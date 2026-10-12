@@ -635,16 +635,33 @@ do_apply_quiet() {
     esac
 }
 
+READ_LCK=$RUNDIR/lock-read.lck
+do_refresh() {
+    local owner
+    while ! mkdir "$READ_LCK" 2>/dev/null; do
+        owner=$(cat "$READ_LCK/pid" 2>/dev/null)
+        # An empty pid is the short interval between mkdir and writing the owner's pid.
+        [ -n "$owner" ] || exit 0
+        { tr '\0' ' ' < "/proc/$owner/cmdline"; } 2>/dev/null | grep -q '/unisoc-modem/lock' && exit 0
+        rm -rf "$READ_LCK"
+    done
+    echo $$ > "$READ_LCK/pid"
+    trap 'rm -rf "$READ_LCK" 2>/dev/null' EXIT INT TERM
+    do_get >/dev/null
+}
+
 case "${1:-}" in
+    refresh) do_refresh ;;
     verify) verify_replay ;;
     get)
-        # default: serve the cache (instant); refresh it in the background when
-        # it is missing or stale. "get fresh" does the real seven-AT read.
-        if [ "${2:-}" = fresh ] || [ ! -s "$LOCKCACHE" ]; then
+        # The request path serves cached data only; a refresh is serialized and can run detached.
+        if [ "${2:-}" = cached ]; then
+            :
+        elif [ "${2:-}" = fresh ] || [ ! -s "$LOCKCACHE" ]; then
             do_get >/dev/null
         else
             age=$(( $(date +%s) - $(date -r "$LOCKCACHE" +%s 2>/dev/null || echo 0) ))
-            [ "$age" -gt 600 ] && setsid "$0" get fresh >/dev/null 2>&1 &
+            [ "$age" -gt 600 ] && setsid "$0" refresh >/dev/null 2>&1 &
         fi
         emit_state
         ;;
@@ -652,5 +669,5 @@ case "${1:-}" in
     replay) do_replay "${2:-late}" ;;
     # run by sfun_restart_locked, under the radio lock
     sfun-restart) sfun_restart "${2:-late}" ;;
-    *)      echo "usage: $0 get [fresh] | apply KIND VALUE | replay [early]" >&2; exit 2 ;;
+    *)      echo "usage: $0 get [fresh|cached] | refresh | apply KIND VALUE | replay [early]" >&2; exit 2 ;;
 esac

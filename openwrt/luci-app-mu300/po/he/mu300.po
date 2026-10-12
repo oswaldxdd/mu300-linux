@@ -15,6 +15,9 @@ msgstr "נעילות רשת"
 msgid "SMS"
 msgstr "SMS"
 
+msgid "Data usage"
+msgstr "שימוש בנתונים"
+
 msgid "AT terminal"
 msgstr "מסוף AT"
 
@@ -32,6 +35,9 @@ msgstr "שפות"
 
 msgid "Power"
 msgstr "צריכת חשמל"
+
+msgid "CPU"
+msgstr "CPU"
 
 msgid "MU300 control center: status dashboard, network locks, AT terminal and SMS"
 msgstr "מרכז הבקרה של MU300: לוח מצב, נעילות רשת, מסוף AT ו-SMS"
@@ -105,6 +111,21 @@ msgstr "מספר לא ידוע"
 msgid "Select"
 msgstr "בחירה"
 
+msgid "This is a network or frequency scan: it takes one to three minutes, holds the modem's AT channel all that time, and mobile data may pause meanwhile. It runs in the background; the reply appears here when it is done."
+msgstr "זוהי סריקת רשתות או תדרים: היא נמשכת דקה עד שלוש דקות, מחזיקה את ערוץ ה-AT של המודם כל אותו זמן, ונתונים סלולריים עשויים להיעצר בינתיים. היא רצה ברקע; התשובה תופיע כאן כשתסתיים."
+
+msgid "This changes a network mode, band or cell setting the modem stores: it stays in force after a reboot, and in Android too, where a network that does not match it shows as No Service. The Locks page shows these settings and resets them."
+msgstr "פעולה זו משנה מצב רשת, פס או הגדרת תא שהמודם שומר: היא נשארת בתוקף אחרי הפעלה מחדש, וגם ב-Android, שם רשת שאינה תואמת לה מוצגת כ'אין שירות'. דף הנעילות מציג את ההגדרות האלה ומאפס אותן."
+
+msgid "This switches the radio, the data connection or the modem itself: mobile data drops until it is restored, and this page may lose its connection for a while."
+msgstr "פעולה זו מחליפה מצב של הרדיו, של חיבור הנתונים או של המודם עצמו: הנתונים הסלולריים יתנתקו עד שישוחזרו, ודף זה עלול לאבד את החיבור לזמן מה."
+
+msgid "This changes the data profiles (APNs) stored in the modem, which mobile data and Android use."
+msgstr "פעולה זו משנה את פרופילי הנתונים (APN) השמורים במודם, שבהם משתמשים הנתונים הסלולריים ו-Android."
+
+msgid "This changes the SIM's PIN lock or enters a PIN: wrong PINs block the SIM until its PUK is entered."
+msgstr "פעולה זו משנה את נעילת ה-PIN של ה-SIM או מזינה PIN: קודי PIN שגויים חוסמים את ה-SIM עד להזנת ה-PUK שלו."
+
 msgid "Basic"
 msgstr "בסיסי"
 
@@ -132,14 +153,104 @@ msgstr "מוכן."
 msgid "Session history (click to reuse)"
 msgstr "היסטוריית הפעלה (לחיצה לשימוש חוזר)"
 
+msgid "Running in the background (at most %d s); the reply appears here when it is done…"
+msgstr "רץ ברקע (לכל היותר %d שנ׳); התשובה תופיע כאן כשיסתיים…"
+
+msgid "The modem gave no final answer in time"
+msgstr "המודם לא נתן תשובה סופית בזמן"
+
+msgid "%d s in the background"
+msgstr "%d שנ׳ ברקע"
+
 msgid "(no output)"
 msgstr "(אין פלט)"
+
+msgid "This command changes the modem's state."
+msgstr "פקודה זו משנה את מצב המודם."
+
+msgid "Not sent yet: waiting for confirmation"
+msgstr "טרם נשלח: ממתין לאישור"
+
+msgid "Send this AT command?"
+msgstr "לשלוח את פקודת ה-AT הזו?"
+
+msgid "Send anyway"
+msgstr "לשלוח בכל זאת"
+
+msgid "Not sent"
+msgstr "לא נשלח"
 
 msgid "Request failed"
 msgstr "הבקשה נכשלה"
 
 msgid "(empty)"
 msgstr "(ריק)"
+
+msgid "Failed: %s"
+msgstr "נכשל: %s"
+
+msgid "Saved"
+msgstr "נשמר"
+
+msgid "Management connection lost"
+msgstr "חיבור הניהול אבד"
+
+msgid "CPU profile unavailable"
+msgstr "CPU profile unavailable"
+
+msgid "Power saving"
+msgstr "Power saving"
+
+msgid "Balanced"
+msgstr "Balanced"
+
+msgid "Performance"
+msgstr "Performance"
+
+msgid "Cores capped at about 60 %% of their maximum (cooler, less power)."
+msgstr "Cores capped at about 60 %% of their maximum (cooler, less power)."
+
+msgid "Schedutil across the full hardware range (the stock behaviour)."
+msgstr "Schedutil across the full hardware range (the stock behaviour)."
+
+msgid "Every cluster pinned at its hardware maximum."
+msgstr "Every cluster pinned at its hardware maximum."
+
+msgid "CPU profile"
+msgstr "CPU profile"
+
+msgid "A profile sets the CPU governor and the per-cluster frequency limits. It stays within the hardware frequency table and never changes the voltage, so it cannot overclock this SoC. The kernel keeps throttling at its thermal limit in every profile."
+msgstr "A profile sets the CPU governor and the per-cluster frequency limits. It stays within the hardware frequency table and never changes the voltage, so it cannot overclock this SoC. The kernel keeps throttling at its thermal limit in every profile."
+
+msgid "Saved profile: %s"
+msgstr "Saved profile: %s"
+
+msgid "Thermal throttling is active right now: the frequencies below are below the profile ceiling."
+msgstr "Thermal throttling is active right now: the frequencies below are below the profile ceiling."
+
+msgid "Clusters"
+msgstr "Clusters"
+
+msgid "Cores"
+msgstr "Cores"
+
+msgid "Governor"
+msgstr "Governor"
+
+msgid "Now"
+msgstr "Now"
+
+msgid "Min"
+msgstr "Min"
+
+msgid "Max"
+msgstr "Max"
+
+msgid "Hardware max"
+msgstr "Hardware max"
+
+msgid "Frequencies in MHz."
+msgstr "Frequencies in MHz."
 
 msgid "USB role"
 msgstr "תפקיד USB"
@@ -417,6 +528,9 @@ msgstr "הפעלה מחדש של ההתקן"
 msgid "Switch to Android"
 msgstr "מעבר ל-Android"
 
+msgid "Lock Linux"
+msgstr "נעילת Linux"
+
 msgid "Neighbor cells"
 msgstr "תאים שכנים"
 
@@ -434,9 +548,6 @@ msgstr "הופעל ברקע: %s"
 
 msgid "Done: %s"
 msgstr "בוצע: %s"
-
-msgid "Failed: %s"
-msgstr "נכשל: %s"
 
 msgid "Disconnecting data…"
 msgstr "מנתק נתונים…"
@@ -479,6 +590,24 @@ msgstr "החלפה ואתחול"
 
 msgid "Preparing Android boot and rebooting…"
 msgstr "מכין אתחול Android ומאתחל…"
+
+msgid "Unlock Linux"
+msgstr "ביטול נעילת Linux"
+
+msgid "After five boots in a row that do not finish, the device falls back to Android again."
+msgstr "אחרי חמש אתחולים רצופים שלא הושלמו, המכשיר חוזר שוב ל-Android."
+
+msgid "Unlock"
+msgstr "ביטול נעילה"
+
+msgid "The device will never switch to Android by itself, not even after failed boots: Android only from this page (Switch to Android) or with mu300-next-boot android."
+msgstr "המכשיר לעולם לא יעבור ל-Android מעצמו, גם לא אחרי אתחולים כושלים: מעבר ל-Android רק מהדף הזה (מעבר ל-Android) או עם mu300-next-boot android."
+
+msgid "A new kernel from an update still gets its first boots on trial, and locks again once one of them succeeds."
+msgstr "ליבה חדשה מעדכון עדיין מבצעת את האתחולים הראשונים בניסיון, וננעלת שוב ברגע שאחד מהם מצליח."
+
+msgid "If the system itself no longer starts, the device waits on USB (telnet) instead of going to Android."
+msgstr "אם המערכת עצמה כבר לא עולה, המכשיר ממתין דרך USB (telnet) במקום לעבור ל-Android."
 
 msgid "Hide SIM identifiers"
 msgstr "הסתרת מזהי SIM"
@@ -615,11 +744,8 @@ msgstr "מקוון"
 msgid "AT adapter unavailable"
 msgstr "מתאם AT אינו זמין"
 
-msgid "Saved"
-msgstr "נשמר"
-
-msgid "Management connection lost"
-msgstr "חיבור הניהול אבד"
+msgid "Linux locked"
+msgstr "Linux נעול"
 
 msgid "Installing the language pack…"
 msgstr "מתקין את חבילת השפות…"
@@ -795,11 +921,8 @@ msgstr "השבתת ההחלה בעת האתחול"
 msgid "Enable apply at startup"
 msgstr "הפעלת ההחלה בעת האתחול"
 
-msgid "Reading the modem directly (a few seconds at most)…"
-msgstr "קורא ישירות מהמודם (כמה שניות לכל היותר)…"
-
-msgid "Refreshed"
-msgstr "רוענן"
+msgid "Refresh started; waiting for the modem status…"
+msgstr "Refresh started; waiting for the modem status…"
 
 msgid "Refresh failed"
 msgstr "הרענון נכשל"
@@ -945,17 +1068,20 @@ msgstr "התעוררות"
 msgid "Nobody connected means no Wi-Fi client and no computer on USB. The Wi-Fi key, a computer on USB or the charger wake the device."
 msgstr "אף אחד לא מחובר פירושו שאין לקוח Wi-Fi ואין מחשב ב-USB. מקש ה-Wi-Fi, מחשב ב-USB או המטען מעירים את ההתקן."
 
-msgid "Automatic: plugged in / on battery"
-msgstr "אוטומטי: מחובר לחשמל / על סוללה"
-
-msgid "Switch to Saver under %"
-msgstr "מעבר לחיסכון מתחת ל-%"
+msgid "This charger has no user charge limit. Native charger temperature and safety policy remains active."
+msgstr "This charger has no user charge limit. Native charger temperature and safety policy remains active."
 
 msgid "Stop charging at"
 msgstr "הפסקת טעינה ב-"
 
 msgid "80 % keeps the battery healthier on a device that stays plugged in."
 msgstr "80 % שומרים על הסוללה במכשיר שנשאר מחובר לחשמל."
+
+msgid "Automatic: plugged in / on battery"
+msgstr "אוטומטי: מחובר לחשמל / על סוללה"
+
+msgid "Switch to Saver under %"
+msgstr "מעבר לחיסכון מתחת ל-%"
 
 msgid "Keep as is"
 msgstr "ללא שינוי"
@@ -983,9 +1109,6 @@ msgstr "מודם במנוחה"
 
 msgid "LEDs when idle"
 msgstr "נורות LED במנוחה"
-
-msgid "CPU"
-msgstr "CPU"
 
 msgid "Ignored lines in power.conf: %s"
 msgstr "שורות שהתעלמו מהן ב-power.conf: %s"
@@ -1143,6 +1266,120 @@ msgstr "אני: %s"
 msgid "Delete"
 msgstr "מחיקה"
 
+msgid "The data usage could not be read"
+msgstr "לא ניתן לקרוא את השימוש בנתונים"
+
+msgid "Today"
+msgstr "היום"
+
+msgid "%s of %s"
+msgstr "%s מתוך %s"
+
+msgid "This billing cycle"
+msgstr "מחזור החיוב הנוכחי"
+
+msgid "Days left in this cycle"
+msgstr "ימים שנותרו במחזור"
+
+msgid "Received"
+msgstr "התקבל"
+
+msgid "Sent"
+msgstr "נשלח"
+
+msgid "Corrected by"
+msgstr "תוקן ב"
+
+msgid "Monthly cap"
+msgstr "מכסה חודשית"
+
+msgid "%s, warning at %d%%"
+msgstr "%s, אזהרה ב-%d%%"
+
+msgid "None"
+msgstr "ללא"
+
+msgid "The monthly cap is reached: mobile data was turned off. It comes back on when the next cycle starts."
+msgstr "המכסה החודשית הושגה: הנתונים הסלולריים כובו. הם יחזרו כשהמחזור הבא יתחיל."
+
+msgid "The monthly cap is reached"
+msgstr "המכסה החודשית הושגה"
+
+msgid "%d%% of the monthly cap is used"
+msgstr "נוצלו %d%% מהמכסה החודשית"
+
+msgid "%s waits for the clock: it has not been set over the network yet. It already counts towards this cycle and goes to its day once the clock is set."
+msgstr "%s ממתין לשעון: השעון עוד לא כוון מהרשת. זה כבר נספר במחזור הזה ויעבור ליום שלו כשהשעון יכוון."
+
+msgid "The interface %s is not there right now: nothing is counted until it comes back."
+msgstr "הממשק %s לא קיים כרגע: שום דבר לא נספר עד שיחזור."
+
+msgid "Counted on %s, both ways, as the operator counts it (a VPN's overhead included)."
+msgstr "נספר על %s, בשני הכיוונים, כפי שהמפעיל סופר (כולל התקורה של VPN)."
+
+msgid "The count is kept in memory and written to the disk every 30 minutes and at shutdown: a power cut loses at most the last half hour."
+msgstr "הספירה נשמרת בזיכרון ונכתבת לדיסק כל 30 דקות ובכיבוי: הפסקת חשמל מאבדת לכל היותר את חצי השעה האחרונה."
+
+msgid "Counting since %s."
+msgstr "נספר מאז %s."
+
+msgid "Per day"
+msgstr "לפי יום"
+
+msgid "Date"
+msgstr "תאריך"
+
+msgid "Total"
+msgstr "סה״כ"
+
+msgid "Per billing cycle"
+msgstr "לפי מחזור חיוב"
+
+msgid "Billing cycle"
+msgstr "מחזור חיוב"
+
+msgid "Enter a size in GB, for example 50 or 2.5"
+msgstr "הזינו גודל ב-GB, למשל 50 או 2.5"
+
+msgid "Enter a percentage from 1 to 100"
+msgstr "הזינו אחוז בין 1 ל-100"
+
+msgid "Turn mobile data off at the cap"
+msgstr "כיבוי נתונים סלולריים במכסה"
+
+msgid "When this cycle reaches the cap, mobile data is turned off: no internet through the operator until the next cycle starts, the cap is raised or this is turned off again. Turning mobile data back on by hand keeps it on until the next reboot."
+msgstr "כשהמחזור הזה מגיע למכסה, הנתונים הסלולריים כבים: אין אינטרנט דרך המפעיל עד שהמחזור הבא מתחיל, המכסה מוגדלת או שאפשרות זו מכובה שוב. הדלקה ידנית של הנתונים הסלולריים משאירה אותם דולקים עד ההפעלה מחדש הבאה."
+
+msgid "Set"
+msgstr "קבע"
+
+msgid "Clear the count"
+msgstr "ניקוי הספירה"
+
+msgid "Every day and billing cycle counted so far is forgotten. Counting goes on from now."
+msgstr "כל הימים ומחזורי החיוב שנספרו עד כה יישכחו. הספירה ממשיכה מעכשיו."
+
+msgid "Billing cycle and cap"
+msgstr "מחזור חיוב ומכסה"
+
+msgid "A billing cycle starts on day"
+msgstr "מחזור חיוב מתחיל ביום"
+
+msgid "31: on the last day of each month"
+msgstr "31: ביום האחרון של כל חודש"
+
+msgid "Monthly cap (GB, 0: none)"
+msgstr "מכסה חודשית (GB, 0: אין)"
+
+msgid "Warning at this percentage of the cap"
+msgstr "אזהרה באחוז זה מהמכסה"
+
+msgid "Used so far in this cycle (GB)"
+msgstr "נוצל עד כה במחזור הזה (GB)"
+
+msgid "What the operator shows for this cycle (for example when counting started in the middle of it); the count is corrected to it."
+msgstr "מה שהמפעיל מציג עבור המחזור הזה (למשל כשהספירה התחילה באמצעו); הספירה מתוקנת לפיו."
+
 msgid "Current setting"
 msgstr "הגדרה נוכחית"
 
@@ -1169,9 +1406,6 @@ msgstr "בליבה זו הנתיב המהיר של חומת האש כבוי כל
 
 msgid "Set %d"
 msgstr "קבע %d"
-
-msgid "Set"
-msgstr "קבע"
 
 msgid "Enter a number from 1 to 255"
 msgstr "הזן מספר בין 1 ל-255"
@@ -1203,6 +1437,9 @@ msgstr "הרדיו תפוס: החייגן או ה-watchdog מחליפים את �
 msgid "The action gave no valid reply"
 msgstr "הפעולה לא החזירה תשובה תקינה"
 
+msgid "The confirm parameter must be 0 or 1"
+msgstr "הפרמטר confirm חייב להיות 0 או 1"
+
 msgid "An AT command is one line of printable ASCII, at most 512 characters"
 msgstr "פקודת AT היא שורה אחת של תווי ASCII הניתנים להדפסה, עד 512 תווים"
 
@@ -1217,6 +1454,12 @@ msgstr "נדחה: פקודה זו תוקעת את יציאת ה-AT עד לאתח
 
 msgid "Applying network locks: the modem is restarting (about half a minute), try again shortly"
 msgstr "מחיל נעילות רשת: המודם מופעל מחדש (כחצי דקה), יש לנסות שוב בעוד רגע"
+
+msgid "A long AT command is still running in the background; try again when it has finished"
+msgstr "פקודת AT ארוכה עדיין רצה ברקע; נסו שוב כשתסתיים"
+
+msgid "This command needs confirmation"
+msgstr "פקודה זו דורשת אישור"
 
 msgid "The AT channel is busy; the command was not sent, try again"
 msgstr "ערוץ ה-AT תפוס; הפקודה לא נשלחה, יש לנסות שוב"
@@ -1305,6 +1548,21 @@ msgstr "ערך חשמל לא תקין"
 msgid "Invalid power request"
 msgstr "בקשת חשמל לא תקינה"
 
+msgid "The data usage adapter gave no valid reply"
+msgstr "מתאם השימוש בנתונים לא החזיר תשובה תקינה"
+
+msgid "Unknown data usage setting"
+msgstr "הגדרת שימוש בנתונים לא ידועה"
+
+msgid "Invalid value for this setting"
+msgstr "ערך לא תקין להגדרה זו"
+
+msgid "The CPU adapter gave no valid reply"
+msgstr "The CPU adapter gave no valid reply"
+
+msgid "Invalid CPU profile"
+msgstr "Invalid CPU profile"
+
 msgid "The languages adapter gave no valid reply"
 msgstr "מתאם השפות לא החזיר תשובה תקינה"
 
@@ -1352,6 +1610,15 @@ msgstr "mu300-next-boot נכשל"
 
 msgid "AT backend did not answer (radio off, modem restarting, or adapter unavailable)"
 msgstr "מנגנון ה-AT לא ענה (הרדיו כבוי, המודם מופעל מחדש, או שהמתאם אינו זמין)"
+
+msgid "The CPU profile could not be read"
+msgstr "The CPU profile could not be read"
+
+msgid "The CPU profile could not be set"
+msgstr "The CPU profile could not be set"
+
+msgid "Unknown CPU operation"
+msgstr "Unknown CPU operation"
 
 msgid "USB role adapter is not executable"
 msgstr "מתאם תפקיד ה-USB אינו ניתן להרצה"
@@ -1458,6 +1725,15 @@ msgstr "אין תא משרת לנעילה"
 msgid "usage: power get|set KEY VALUE|wake|idle"
 msgstr "usage: power get|set KEY VALUE|wake|idle"
 
+msgid "Data usage is not available on this system"
+msgstr "שימוש בנתונים אינו זמין במערכת זו"
+
+msgid "The setting could not be saved"
+msgstr "לא ניתן לשמור את ההגדרה"
+
+msgid "Unknown data usage operation"
+msgstr "פעולת שימוש בנתונים לא ידועה"
+
 msgid "The TTL setting could not be read"
 msgstr "לא ניתן לקרוא את הגדרת ה-TTL"
 
@@ -1466,30 +1742,3 @@ msgstr "לא ניתן להגדיר את ה-TTL"
 
 msgid "Unknown TTL operation"
 msgstr "פעולת TTL לא ידועה"
-
-msgid "Lock Linux"
-msgstr "נעילת Linux"
-
-msgid "Unlock Linux"
-msgstr "ביטול נעילת Linux"
-
-msgid "After five boots in a row that do not finish, the device falls back to Android again."
-msgstr "אחרי חמש אתחולים רצופים שלא הושלמו, המכשיר חוזר שוב ל-Android."
-
-msgid "Unlock"
-msgstr "ביטול נעילה"
-
-msgid "The device will never switch to Android by itself, not even after failed boots: Android only from this page (Switch to Android) or with mu300-next-boot android."
-msgstr "המכשיר לעולם לא יעבור ל-Android מעצמו, גם לא אחרי אתחולים כושלים: מעבר ל-Android רק מהדף הזה (מעבר ל-Android) או עם mu300-next-boot android."
-
-msgid "A new kernel from an update still gets its first boots on trial, and locks again once one of them succeeds."
-msgstr "ליבה חדשה מעדכון עדיין מבצעת את האתחולים הראשונים בניסיון, וננעלת שוב ברגע שאחד מהם מצליח."
-
-msgid "If the system itself no longer starts, the device waits on USB (telnet) instead of going to Android."
-msgstr "אם המערכת עצמה כבר לא עולה, המכשיר ממתין דרך USB (telnet) במקום לעבור ל-Android."
-
-msgid "Linux locked"
-msgstr "Linux נעול"
-
-msgid "This charger has no user charge limit. Native charger temperature and safety policy remains active."
-msgstr "This charger has no user charge limit. Native charger temperature and safety policy remains active."

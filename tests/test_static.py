@@ -511,6 +511,25 @@ class Rules(unittest.TestCase):
         view = (app / 'htdocs/luci-static/resources/view/mu300/ttl.js').read_text()
         self.assertRegex(view, r"if \(st\.backend === 'nft'\)\s*card\.appendChild\([^;]*firewall fast-path is off")
 
+    def test_traffic_and_cpu_pages_are_wired_with_scoped_acl(self):
+        import json
+        app = TOP / 'openwrt' / 'luci-app-mu300'
+        menu = json.loads((app / 'root/usr/share/luci/menu.d/luci-app-mu300.json').read_text())
+        self.assertEqual(menu['admin/modem/traffic']['action'], {'type': 'view', 'path': 'mu300/traffic'})
+        self.assertEqual(menu['admin/system/cpu']['action'], {'type': 'view', 'path': 'mu300/cpu'})
+        self.assertTrue((app / 'htdocs/luci-static/resources/view/mu300/traffic.js').is_file())
+        self.assertTrue((app / 'htdocs/luci-static/resources/view/mu300/cpu.js').is_file())
+        common = (app / 'htdocs/luci-static/resources/mu300/common.js').read_text()
+        for rpc in ('traffic_get', 'traffic_set', 'cpu_get', 'cpu_set'):
+            self.assertIn("method: '%s'" % rpc, common)
+        acl = json.loads((app / 'root/usr/share/rpcd/acl.d/luci-app-mu300.json').read_text())['luci-app-mu300']
+        self.assertIn('traffic_get', acl['read']['ubus']['mu300dash'])
+        self.assertIn('cpu_get', acl['read']['ubus']['mu300dash'])
+        self.assertIn('traffic_set', acl['write']['ubus']['mu300dash'])
+        self.assertIn('cpu_set', acl['write']['ubus']['mu300dash'])
+        self.assertNotIn('traffic_set', acl['read']['ubus']['mu300dash'])
+        self.assertNotIn('cpu_set', acl['read']['ubus']['mu300dash'])
+
     def test_mainline_rewrites_the_ttl_in_tc(self):
         # mu300-ttl's tc backend (clsact egress, matchall, pedit, csum): the flowtable transmits through egress, so
         # flow offloading stays on. The 5.4 kernel has no pedit: mu300-ttl falls back to nftables there.
@@ -648,7 +667,8 @@ class Rules(unittest.TestCase):
                                       capture_output=True, text=True, timeout=30)
         cell = 'openwrt/overlay/lib/netifd/proto/mu300cell.sh'
         v6 = 'openwrt/luci-overlay/lib/netifd/proto/mu300cell-v6.sh'
-        patch = {'openwrt/patches/fw4-sipa-offload.patch': 'x\n'}
+        patch = {'openwrt/patches/fw4-sipa-offload.patch': 'x\n',
+                 'openwrt/patches/wifi-scripts-no-dfs.patch': 'x\n'}
         for system in ('openwrt', 'openwrt-luci'):
             with self.subTest(system=system, missing='mu300cell.sh'):
                 r = run(patch, system)
@@ -658,6 +678,10 @@ class Rules(unittest.TestCase):
                 r = run({cell: 'x\n', v6: 'x\n'}, system)
                 self.assertEqual(r.returncode, 1, r.stderr)
                 self.assertIn('fw4-sipa-offload.patch', r.stderr)
+            with self.subTest(system=system, missing='the DFS patch'):
+                r = run({'openwrt/patches/fw4-sipa-offload.patch': 'x\n', cell: 'x\n', v6: 'x\n'}, system)
+                self.assertEqual(r.returncode, 1, r.stderr)
+                self.assertIn('wifi-scripts-no-dfs.patch', r.stderr)
         # openwrt-luci needs the monitor even when mu300cell.sh does not name it; plain OpenWrt (never relay) does not
         r = run(dict(patch, **{cell: 'x\n'}), 'openwrt-luci')
         self.assertEqual(r.returncode, 1, r.stderr)

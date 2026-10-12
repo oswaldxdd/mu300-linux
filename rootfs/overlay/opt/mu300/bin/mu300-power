@@ -372,18 +372,29 @@ retry_run() {  # repeat what failed, if the state still wants it; the actions no
     return 0
 }
 CPU=$R/sys/devices/system/cpu
+CPU_PROFILE=${MU300_CPU_BIN:-/opt/mu300/bin/mu300-cpu}
 cpu() {  # cpu eco|full
     if [ "$1" = eco ]; then
+        _current=$(rd "$CPU/cpufreq/policy4/scaling_max_freq")
         if [ ! -e "$ST/cpu-max4" ]; then   # the marker says eco was applied, even when the limit could not be read
-            _m=$(rd "$CPU/cpufreq/policy4/scaling_max_freq"); [ -n "$_m" ] || _m=$(rd "$CPU/cpufreq/policy4/cpuinfo_max_freq")
+            _m=$_current; [ -n "$_m" ] || _m=$(rd "$CPU/cpufreq/policy4/cpuinfo_max_freq")
             echo "$_m" > "$ST/cpu-max4"
         fi
-        echo 1500000 > "$CPU/cpufreq/policy4/scaling_max_freq" 2>/dev/null
+        _eco=1500000
+        _profile=$(sed -n 's/^policy4=//p' "$RUN/cpu-ceiling" 2>/dev/null | tail -n1)
+        case $_profile in ''|*[!0-9]*) ;; *) [ "$_profile" -lt "$_eco" ] && _eco=$_profile ;; esac
+        # Never lift a thermal cap that was already lower than the idle ceiling.
+        case $_current in ''|*[!0-9]*) ;; *) [ "$_current" -lt "$_eco" ] && _eco=$_current ;; esac
+        echo "$_eco" > "$CPU/cpufreq/policy4/scaling_max_freq" 2>/dev/null
         echo 0 > "$CPU/cpu7/online" 2>/dev/null
     else
         if [ -e "$ST/cpu-max4" ]; then   # eco was applied: undo exactly that, nothing else
             echo 1 > "$CPU/cpu7/online" 2>/dev/null
             _m=$(rd "$ST/cpu-max4"); [ -n "$_m" ] || _m=$(rd "$CPU/cpufreq/policy4/cpuinfo_max_freq")
+            _current=$(rd "$CPU/cpufreq/policy4/scaling_max_freq")
+            if [ -e "$RUN/thermal-alarm" ]; then
+                case $_current in ''|*[!0-9]*) ;; *) [ "$_current" -lt "$_m" ] && _m=$_current ;; esac
+            fi
             [ -z "$_m" ] || echo "$_m" > "$CPU/cpufreq/policy4/scaling_max_freq" 2>/dev/null
             rm -f "$ST/cpu-max4"
         else
@@ -397,6 +408,9 @@ cpu() {  # cpu eco|full
                 echo "$_m" > "$CPU/cpufreq/policy4/scaling_max_freq" 2>/dev/null
             fi
         fi
+        # cpu7 and policy4 are back. Reapply the profile selected while idle (if any); mu300-cpu respects an active
+        # thermal alarm and will not raise the frequency ceiling while the device is still hot.
+        [ -x "$CPU_PROFILE" ] && "$CPU_PROFILE" apply >/dev/null 2>&1 || true
     fi
     return 0
 }

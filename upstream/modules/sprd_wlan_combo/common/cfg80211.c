@@ -181,6 +181,11 @@ static void cfg80211_do_work(struct work_struct *work)
 		}
 
 		kfree(sprd_work);
+		/*
+		 * MU300: this loop drains every queued item in one run, and items requeue themselves (the RX
+		 * refill did, back to back, in issue #94). Yield between them so a long run cannot hold the CPU.
+		 */
+		cond_resched();
 	}
 }
 
@@ -1788,6 +1793,11 @@ void sprd_core_free(struct sprd_priv *priv)
 #ifdef DRV_RESET_SELF
 	cfg80211_deinit_reset_work(priv);
 #endif
+	/*
+	 * MU300 (issue #146): the scan timer lives in priv and is only deleted when a scan completes; a scan still
+	 * running at remove is reported done by iface_deinit_vif, but nothing owned the timer here, where priv goes.
+	 */
+	timer_shutdown_sync(&priv->scan_timer);
 	sprd_cmd_deinit(priv);
 
 	wiphy = priv->wiphy;

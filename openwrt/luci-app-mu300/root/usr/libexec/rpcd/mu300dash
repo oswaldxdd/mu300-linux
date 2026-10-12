@@ -68,6 +68,8 @@ export MU300_AT_LOCK_WAIT
 # of 8 s after the daemon's usual 1-3 s drain fits); 25 s in all, under rpcd's 30
 AT_LOCK_WAIT=5
 AT_BUDGET=20
+AT_JOB=$DIR/at-job
+AT_JOB_T=99
 
 # ------------------------------------------------------------- input, JSON
 # This script runs as root on what a browser sent. Every parameter is checked
@@ -234,9 +236,75 @@ at_wedges() {
         }
     } END { exit !found }'
 }
+# at_class CMD: what sending CMD would do beyond answering, by its commands anywhere on the line (spaces and quotes
+# dropped, case ignored; "=?" is a test command and changes nothing):
+#   scan   takes minutes and holds the channel: AT+COPS=? (the network list), any *SCAN* command (AT+SPFREQSCAN)
+#   nv     a setting the modem keeps in its NV: network mode, NR mode, EN-DC, band and cell locks (AT+SPTESTMODE=,
+#          AT+SP5GRAN=, AT+SPENDC=, AT+SPLBAND=1/2, AT+SPFORCEFRQ= other than the =x,3 read). They survive a
+#          reboot and stay in force in Android (#96); the Locks page sets and undoes them.
+#   radio  the radio, the data connection or the modem itself: AT+CFUN=, AT+SFUN=, AT+CGATT=, AT+CGACT=, AT+CGDATA,
+#          AT+COPS=0/1/2/4 (operator selection, deregistration), ATD (a call), AT+SPATASSERT= (crashes the modem)
+#   apn    the stored data profiles: AT+CGDCONT=, AT+CGAUTH=
+#   sim    the SIM's PIN: AT+CLCK= (not the ,2 query), AT+CPWD=, AT+CPIN= (wrong PINs block the SIM)
+# Prints the class, or nothing for a command that only reads.
+at_class() {
+    printf '%s\n' "$1" | tr -d ' "' | tr 'a-z' 'A-Z' | awk '{
+        s = $0
+        if (s ~ /\+COPS=\?/ || s ~ /SCAN/) c = "scan"
+        else if (s ~ /\+(SPTESTMODE|SP5GRAN|SPENDC)=([^?]|$)/ || s ~ /\+SPLBAND=0*[12]([^0-9]|$)/ ||
+                 (s ~ /\+SPFORCEFRQ=[0-9]*,/ && s !~ /\+SPFORCEFRQ=[0-9]*,0*3([^0-9]|$)/)) c = "nv"
+        else if (s ~ /\+(CFUN|SFUN|CGATT|CGACT|SPATASSERT)=([^?]|$)/ || s ~ /\+CGDATA/ ||
+                 s ~ /\+COPS=0*[0124]([^0-9]|$)/ || s ~ /^ATD/) c = "radio"
+        else if (s ~ /\+(CGDCONT|CGAUTH)=([^?]|$)/) c = "apn"
+        else if ((s ~ /\+CLCK=([^?]|$)/ && s !~ /\+CLCK=[A-Z0-9]*,0*2([^0-9]|$)/) || s ~ /\+(CPWD|CPIN)=([^?]|$)/) c = "sim"
+    } END { if (c != "") print c }'
+}
+
+# the background AT job (a confirmed scan): running while it has a start and no end, and its process lives - or it
+# was started a moment ago and has not written its pid yet
+at_job_running() {
+    [ -f "$AT_JOB/start" ] && [ ! -f "$AT_JOB/end" ] || return 1
+    _p=$(cat "$AT_JOB/pid" 2>/dev/null)
+    if [ -n "$_p" ]; then
+        [ -d "/proc/$_p" ] && { tr '\0' ' ' < "/proc/$_p/cmdline"; } 2>/dev/null | grep -q mu300dash
+    else
+        [ $(( $(now) - $(cat "$AT_JOB/start" 2>/dev/null || echo 0) )) -lt 10 ]
+    fi
+}
+
+# run_at_job: the detached half of a confirmed scan ("mu300dash at-job", started by m_at). mu300-at bounds it: the
+# lock wait, then AT_JOB_T and the daemon's drain - under two and a half minutes in all.
+run_at_job() {
+    local cmd out rc=0
+    cmd=$(cat "$AT_JOB/cmd" 2>/dev/null) || exit 1
+    echo $$ > "$AT_JOB/pid"
+    out=$(MU300_AT_LOCK_WAIT=10 "$AT" -t "$AT_JOB_T" "$cmd" 2>&1) || rc=$?
+    printf '%s\n' "$out" > "$AT_JOB/reply.part" && mv "$AT_JOB/reply.part" "$AT_JOB/reply"
+    echo "$rc" > "$AT_JOB/rc"
+    now > "$AT_JOB/end"
+}
+
+m_at_job() {
+    local start end elapsed rc
+    [ -f "$AT_JOB/start" ] || { printf '{"none":1}\n'; return; }
+    start=$(cat "$AT_JOB/start" 2>/dev/null); case $start in ''|*[!0-9]*) start=$(now) ;; esac
+    if at_job_running; then
+        printf '{"running":1,"cmd":%s,"elapsed":%d,"limit":%d}\n' "$(json_str "$(cat "$AT_JOB/cmd" 2>/dev/null)")" \
+            $(( $(now) - start )) "$AT_JOB_T"
+        return
+    fi
+    end=$(cat "$AT_JOB/end" 2>/dev/null); case $end in ''|*[!0-9]*) end=$(now) ;; esac
+    rc=$(cat "$AT_JOB/rc" 2>/dev/null); case $rc in ''|*[!0-9]*) rc=1 ;; esac
+    elapsed=$((end - start))
+    printf '{"running":0,"done":1,"ok":%d,"cmd":%s,"elapsed":%d,"ended":%d,"reply":%s}\n' "$([ "$rc" = 0 ] && echo 1 || echo 0)" \
+        "$(json_str "$(cat "$AT_JOB/cmd" 2>/dev/null)")" "$elapsed" "$end" "$(json_str "$(cat "$AT_JOB/reply" 2>/dev/null)")"
+}
+
 m_at() {
-    local cmd reply
+    local cmd reply confirm class
     inp '@.cmd'; cmd=$V
+    inp '@.confirm'; confirm=$V
+    allowed "$confirm" '(0|1)?' || { refuse 'The confirm parameter must be 0 or 1'; return; }
     # one line of printable ASCII (a CR or LF would send a second command)
     if ! is_ascii_line "$cmd" || [ ${#cmd} -gt "$AT_MAX" ]; then
         refuse 'An AT command is one line of printable ASCII, at most 512 characters'
@@ -259,6 +327,29 @@ m_at() {
     # of a generic busy, so it does not look like the console died
     if [ -d /run/unisoc-modem-lock-apply ]; then
         printf '{"ok":0,"busy":1,"error":"Applying network locks: the modem is restarting (about half a minute), try again shortly"}\n'
+        return
+    fi
+    # a scan in the background holds the channel for minutes: say so, not just "busy"
+    if at_job_running; then
+        printf '{"ok":0,"busy":1,"job":1,"error":"A long AT command is still running in the background; try again when it has finished"}\n'
+        return
+    fi
+    # what the command would do beyond answering: nothing is sent before the page has asked
+    class=$(at_class "$cmd")
+    if [ -n "$class" ] && [ "$confirm" != 1 ]; then
+        printf '{"ok":0,"confirm":1,"kind":%s,"error":"This command needs confirmation"}\n' "$(json_str "$class")"
+        return
+    fi
+    if [ "$class" = scan ]; then
+        # minutes, never inside a request: a job of its own, which the page asks after (at_job)
+        rm -rf "$AT_JOB"
+        (umask 077; mkdir -p "$AT_JOB") 2>/dev/null
+        printf '%s\n' "$cmd" > "$AT_JOB/cmd"
+        now > "$AT_JOB/start"
+        setsid "$0" at-job >/dev/null 2>&1 &
+        printf '%s %s\n' "$(date '+%m-%d %H:%M:%S')" "$cmd" >> "$HIST"
+        tail -n 40 "$HIST" > "$HIST.t" 2>/dev/null && mv "$HIST.t" "$HIST"
+        printf '{"ok":1,"started":1,"job":1,"cmd":%s,"limit":%d}\n' "$(json_str "$cmd")" "$AT_JOB_T"
         return
     fi
     # mu300-at itself gives up waiting for the lock and says so; turn that into a
@@ -285,17 +376,18 @@ m_at_history() {
 }
 
 m_lock_get() {
-    local fresh out
+    local fresh out age cache=$DIR/lock.json
     inp '@.fresh'; fresh=$V
     allowed "$fresh" '(0|1)?' || { refuse 'The fresh parameter must be 0 or 1'; return; }
-    # default serves the lock cache instantly (a real read is seven AT
-    # round trips, about a second each); fresh=1 does the real read -
-    # the page uses it only behind the manual refresh button
-    if [ "$fresh" = 1 ]; then
-        out=$("$DASH/lock" get fresh 2>/dev/null)
+    # Never hold an RPC while the modem is read. Start one serialized refresh when asked, missing or stale,
+    # then answer from the cache; the page can poll this cheap path while a silent modem recovers.
+    if [ "$fresh" = 1 ] || [ ! -s "$cache" ]; then
+        setsid "$DASH/lock" refresh >/dev/null 2>&1 &
     else
-        out=$("$DASH/lock" get 2>/dev/null)
+        age=$(( $(date +%s) - $(date -r "$cache" +%s 2>/dev/null || echo 0) ))
+        [ "$age" -gt 600 ] && setsid "$DASH/lock" refresh >/dev/null 2>&1 &
     fi
+    out=$("$DASH/lock" get cached 2>/dev/null)
     json_obj "$out" || printf '{"error":"Lock read failed"}\n'
 }
 
@@ -498,6 +590,28 @@ m_power_set() {
     esac
     reply_obj "$out" 'The power adapter gave no valid reply'
 }
+m_traffic_get() { reply_obj "$("$DASH/traffic" get 2>/dev/null)" 'The data usage adapter gave no valid reply'; }
+m_traffic_set() {
+    local op value
+    inp '@.op'; op=$V
+    inp '@.value'; value=$V
+    case $op in
+        reset_day) allowed "$value" '([1-9]|[12][0-9]|3[01])' ;;
+        cap|used)  allowed "$value" '(0|[1-9][0-9]{0,15})' ;;
+        warn)      allowed "$value" '([1-9]|[1-9][0-9]|100)' ;;
+        cut)       allowed "$value" '(on|off)' ;;
+        clear)     allowed "$value" 'yes' ;;
+        *)         refuse 'Unknown data usage setting'; return ;;
+    esac || { refuse 'Invalid value for this setting'; return; }
+    reply_obj "$("$DASH/traffic" set "$op" "$value" 2>/dev/null)" 'The data usage adapter gave no valid reply'
+}
+m_cpu_get() { reply_obj "$("$DASH/cpu" get 2>/dev/null)" 'The CPU adapter gave no valid reply'; }
+m_cpu_set() {
+    local profile
+    inp '@.profile'; profile=$V
+    allowed "$profile" '(saving|balanced|performance)' || { refuse 'Invalid CPU profile'; return; }
+    reply_obj "$("$DASH/cpu" set "$profile" 2>/dev/null)" 'The CPU adapter gave no valid reply'
+}
 m_lang_get() { reply_obj "$("$LANGS" get 2>/dev/null)" 'The languages adapter gave no valid reply'; }
 
 # op: enable|disable (codes: up to 64 language codes, or all), use (one code, en or auto), install (source: release
@@ -552,7 +666,8 @@ do_list() {
 	"status": { },
 	"signal": { },
 	"act": { "op": "String", "arg": "String" },
-	"at": { "cmd": "String" },
+	"at": { "cmd": "String", "confirm": "String" },
+	"at_job": { },
 	"at_history": { },
 	"lock_get": { "fresh": "String" },
 	"lock_set": { "kind": "String", "val": "String" },
@@ -570,7 +685,11 @@ do_list() {
 	"power_get": { },
 	"power_set": { "op": "String", "key": "String", "value": "String" },
 	"ttl_get": { },
-	"ttl_set": { "value": "String" }
+	"ttl_set": { "value": "String" },
+	"traffic_get": { },
+	"traffic_set": { "op": "String", "value": "String" },
+	"cpu_get": { },
+	"cpu_set": { "profile": "String" }
 }
 EOF
 }
@@ -589,6 +708,9 @@ run_m() {  # run_m LABEL FUNCTION: the method's reply, logged
 }
 
 case "${1:-}" in
+at-job)
+    run_at_job
+    ;;
 list)
     do_list
     ;;
@@ -608,6 +730,7 @@ call)
         signal)       run_m signal       m_signal ;;
         act)          run_m act          m_act ;;
         at)           run_m at           m_at ;;
+		at_job)       run_m at_job       m_at_job ;;
         at_history)   run_m at_history   m_at_history ;;
         lock_get)     run_m lock_get     m_lock_get ;;
         lock_set)     run_m lock_set     m_lock_set ;;
@@ -626,6 +749,10 @@ call)
         power_set)    run_m power_set    m_power_set ;;
         ttl_get)      run_m ttl_get      m_ttl_get ;;
         ttl_set)      run_m ttl_set      m_ttl_set ;;
+		traffic_get)  run_m traffic_get  m_traffic_get ;;
+		traffic_set)  run_m traffic_set  m_traffic_set ;;
+		cpu_get)      run_m cpu_get      m_cpu_get ;;
+		cpu_set)      run_m cpu_set      m_cpu_set ;;
         *)            refuse 'No such method' ;;
     esac
     ;;

@@ -260,7 +260,8 @@ class Atd(ShellTest):
     def send(self, master, cmd, reply, t=1, before_reply=None):
         """Hand the daemon CMD (as a client does), answer on the pty when it arrives; seconds until the answer file.
         The answer itself is left in self.answer. BEFORE_REPLY, if given, runs between the two."""
-        answer = self.tmp / 'answer'
+        # Match mu300-at's contract: the daemon only accepts answer.<pid> inside its private runtime directory.
+        answer = self.dir / f'answer.{os.getpid()}'
         answer.unlink(missing_ok=True)
         t0 = time.monotonic()
         with open(self.dir / 'cmd', 'w') as f:
@@ -279,6 +280,17 @@ class Atd(ShellTest):
         elapsed = time.monotonic() - t0
         self.answer = answer.read_text() if answer.exists() else None
         return elapsed
+
+    def test_arbitrary_answer_path_is_rejected_without_writing_to_the_modem(self):
+        for shell in self.each_shell():
+            _logs, master = self.start(shell, nr0=False)
+            outside = self.tmp / 'not-owned-by-daemon'
+            with open(self.dir / 'cmd', 'w') as f:
+                f.write(f'1 {outside} AT+E\n')
+            time.sleep(0.2)
+            self.assertFalse(select.select([master], [], [], 0)[0], 'malformed request reached the modem')
+            self.assertFalse(outside.exists(), 'daemon wrote outside its private runtime directory')
+            self.assertIn('malformed request (answer file), dropped', self.err.read_text())
 
     def whole_seconds(self):
         """The daemon's shell reads in whole seconds only (bash 3.2): every drain then waits the full second."""

@@ -4,6 +4,7 @@ may go onto this device."""
 import io
 import os
 import shutil
+import stat
 import struct
 import subprocess
 import sys
@@ -152,13 +153,60 @@ class Update(UpdateBase):
                 self.assertEqual(note.exists(), noted, (installed, latest))
                 self.assertEqual((motd / '60-mu300-update').exists(), noted)
                 if noted:
-                    self.assertEqual(note.read_text(), f'mu300-linux {latest} is out (this is {installed}): '
-                                                       'sudo mu300-update apply\n')
+                    self.assertEqual(note.read_text(), f'mu300-linux {latest} is out (this is {installed}); '
+                                                       'use a matching offline charge2 update package\n')
             # offline: the note stays, and the caller hears it (to ask again sooner)
             self.up(shell, 'latest_release() { echo v2026.10.08; }; installed_version() { echo v2026.10.06; }; notice', **env)
             r = self.up(shell, 'latest_release() { :; }; notice; echo rc=$?', **env)
             self.assertIn('rc=1', r.stdout)
             self.assertTrue(note.exists())
+
+    def test_generic_online_apply_refuses_before_side_effects(self):
+        lock = self.tmp / 'run' / 'mu300-update'
+        keep = self.disk / 'ubuntu' / 'etc' / 'keep'
+        keep.write_text('charge2 baseline\n')
+        before = sorted(str(p.relative_to(self.disk)) for p in self.disk.rglob('*'))
+        self.stub('id', '[ "$1" = -u ] && { echo 0; exit 0; }; exit 2')
+        for name in ('curl', 'wget', 'mount', 'umount'):
+            self.stub(name, 'printf "%s %s\\n" "$0" "$*" >> "$STUBLOG/touches"; exit 93')
+        for shell in self.each_shell():
+            r = self.script(shell, BIN / 'mu300-update', 'apply', MU300_DISK=self.disk,
+                            MU300_LOCK=lock, MU300_SYSROOT=self.root)
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn('generic online firmware updates are disabled for this charge2 build', r.stderr)
+            self.assertIn('matching offline charge2 update package', r.stderr)
+            self.assertFalse((self.tmp / 'lock').exists(), 'refusal must happen before lock creation')
+            self.assertFalse((self.tmp / 'touches').exists(), 'refusal must happen before download or mount')
+            self.assertEqual(keep.read_text(), 'charge2 baseline\n')
+            self.assertEqual(sorted(str(p.relative_to(self.disk)) for p in self.disk.rglob('*')), before)
+
+    def test_state_changing_commands_take_a_private_lock(self):
+        empty_disk = self.tmp / 'empty-disk'
+        empty_disk.mkdir()
+        lock = self.tmp / 'run' / 'mu300-update'
+        lock.parent.mkdir(parents=True)
+        self.stub('id', '[ "$1" = -u ] && { echo 0; exit 0; }; exit 2')
+        for shell in self.each_shell():
+            r = self.script(shell, BIN / 'mu300-update', 'clean', MU300_DISK=empty_disk,
+                            MU300_LOCK=lock, MU300_SYSROOT=self.root)
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn('the Linux partition is not mounted', r.stderr)
+            self.assertTrue(lock.is_dir())
+            self.assertEqual(stat.S_IMODE(lock.stat().st_mode), 0o700)
+            self.assertFalse((lock / 'held').exists(), 'the lock must be released after the command exits')
+
+    def test_updater_lock_refuses_a_symlink_without_touching_its_target(self):
+        target = self.tmp / 'real-lock-target'
+        target.mkdir()
+        target.chmod(0o700)
+        link = self.tmp / 'lock-link'
+        link.symlink_to(target, target_is_directory=True)
+        for shell in self.each_shell():
+            r = self.up(shell, 'lock_take', MU300_LOCK=link)
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn('cannot lock:', r.stderr)
+            self.assertFalse((target / 'lock').exists())
+            self.assertFalse((target / 'held').exists())
 
     def test_rootfs_asset(self):
         osr = self.disk / 'ubuntu' / 'etc' / 'os-release'

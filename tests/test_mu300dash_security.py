@@ -91,7 +91,7 @@ exit 0
 DEFAULTS = {
     'dashboard-info': '{"ok":1,"host":"f50"}', 'cell': '{"ok":1}', 'action': '{"ok":1,"op":"x"}',
     'lock': '{"ok":1,"mode":{"label":"auto"}}', 'device-usb': '{"ok":1}', 'at': 'OK', 'sms': 'sent (12)',
-    'languages': '{"ok":1}', 'power': '{"ok":1}', 'ttl': '{"ok":1}',
+    'languages': '{"ok":1}', 'power': '{"ok":1}', 'ttl': '{"ok":1}', 'traffic': '{"ok":1}', 'cpu': '{"ok":1}',
 }
 
 # The methods that start something with setsid (in the background of mu300dash)
@@ -210,10 +210,10 @@ class Mu300Dash(ShellTest):
 
 
 class Inventory(Mu300Dash):
-    METHODS = {'sysinfo', 'status', 'signal', 'act', 'at', 'at_history', 'lock_get', 'lock_set', 'sms_list',
+    METHODS = {'sysinfo', 'status', 'signal', 'act', 'at', 'at_history', 'at_job', 'lock_get', 'lock_set', 'sms_list',
                'sms_show', 'sms_send', 'sms_delete', 'sms_sync', 'usb_get', 'usb_set', 'usb_net_list', 'usb_net_add',
                'lang_get', 'lang_set', 'power_get', 'power_set',
-               'ttl_get', 'ttl_set'}
+               'ttl_get', 'ttl_set', 'traffic_get', 'traffic_set', 'cpu_get', 'cpu_set'}
 
     def test_list_declares_every_method(self):
         for shell in self.each_shell():
@@ -235,7 +235,7 @@ class Inventory(Mu300Dash):
     def test_the_changed_scripts_parse(self):
         for shell in self.each_shell():
             for p in [DASH, LIB] + [ADAPTERS / n for n in ('action', 'at', 'boot-replay', 'cell', 'dashboard-info',
-                                                         'device-usb', 'lock', 'languages', 'power', 'ttl')]:
+                                                         'device-usb', 'lock', 'languages', 'power', 'ttl', 'traffic', 'cpu')]:
                 with self.subTest(p=p.name):
                     r = subprocess.run(shell + ['-n', str(p)], capture_output=True, text=True)
                     self.assertEqual(r.returncode, 0, r.stderr)
@@ -380,8 +380,8 @@ class Passthrough(Mu300Dash):
         ('act', {'op': 'os', 'arg': 'android'}, [['action', 'os', 'android']]),
         ('act', {'op': 'os', 'arg': 'lock'}, [['action', 'os', 'lock']]),
         ('act', {'op': 'os', 'arg': 'unlock'}, [['action', 'os', 'unlock']]),
-        ('lock_get', {}, [['lock', 'get']]),
-        ('lock_get', {'fresh': '1'}, [['lock', 'get', 'fresh']]),
+        ('lock_get', {}, [['lock', 'get', 'cached'], ['setsid', 'lock', 'refresh']]),
+        ('lock_get', {'fresh': '1'}, [['lock', 'get', 'cached'], ['setsid', 'lock', 'refresh']]),
         ('lock_set', {'kind': 'lte', 'val': '1,3,41'}, [['setsid', 'lock', 'apply', 'lte', '1,3,41']]),
         ('lock_set', {'kind': 'nr', 'val': ''}, [['setsid', 'lock', 'apply', 'nr', '']]),
         ('lock_set', {'kind': 'cell', 'val': 'lte:1650,211'}, [['setsid', 'lock', 'apply', 'cell', 'lte:1650,211']]),
@@ -421,6 +421,11 @@ class Passthrough(Mu300Dash):
         ('ttl_set', {'value': '255'}, [['ttl', 'set', '255']]),
         ('ttl_set', {'value': '1'}, [['ttl', 'set', '1']]),
         ('ttl_set', {'value': 'off'}, [['ttl', 'set', 'off']]),
+        ('traffic_get', {}, [['traffic', 'get']]),
+        ('traffic_set', {'op': 'cap', 'value': '53687091200'}, [['traffic', 'set', 'cap', '53687091200']]),
+        ('traffic_set', {'op': 'cut', 'value': 'off'}, [['traffic', 'set', 'cut', 'off']]),
+        ('cpu_get', {}, [['cpu', 'get']]),
+        ('cpu_set', {'profile': 'balanced'}, [['cpu', 'set', 'balanced']]),
     ]
 
     def test_valid_values_reach_the_adapter(self):
@@ -429,7 +434,10 @@ class Passthrough(Mu300Dash):
             for (label, r, recs, _), (_, _, want) in zip(self.calls_parallel(shell, jobs), self.CASES):
                 with self.subTest(case=label):
                     self.reply(r)
-                    self.assertEqual(recs, want, r.stdout)
+                    if label.startswith('lock_get '):
+                        self.assertCountEqual(recs, want, r.stdout)   # cache read plus detached refresh
+                    else:
+                        self.assertEqual(recs, want, r.stdout)
 
     def test_at_commands_pass_as_one_exact_argument(self):
         ok = ['AT', 'at+cgsn', 'AT+SP5GCMDS="get nr support_band"', "AT+X='a'", 'AT$(reboot)', 'AT`reboot`',
@@ -791,9 +799,10 @@ class TtlAdapter(ShellTest):
 
 class Acl(unittest.TestCase):
     # SMS bodies (one-time codes) and the AT history (AT+CPIN PINs) are not for read-only users (ruling R14)
-    READ = {'sysinfo', 'status', 'signal', 'lock_get', 'usb_get', 'usb_net_list', 'lang_get', 'power_get', 'ttl_get'}
+    READ = {'sysinfo', 'status', 'signal', 'at_job', 'lock_get', 'usb_get', 'usb_net_list', 'lang_get', 'power_get',
+            'ttl_get', 'traffic_get', 'cpu_get'}
     WRITE = {'act', 'at', 'at_history', 'lock_set', 'sms_list', 'sms_show', 'sms_send', 'sms_delete', 'sms_sync',
-             'usb_set', 'usb_net_add', 'lang_set', 'power_set', 'ttl_set'}
+             'usb_set', 'usb_net_add', 'lang_set', 'power_set', 'ttl_set', 'traffic_set', 'cpu_set'}
 
     def test_actions_need_write_access(self):
         acl = json.loads(ACL.read_text())['luci-app-mu300']

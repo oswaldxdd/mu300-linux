@@ -52,3 +52,43 @@ python3 -m unittest discover -s tests
 ```
 
 CI 在 `u30air` 推送时运行回归测试和 charge2 策略测试；mainline CI 默认锁定 7.2.9，而不是从 kernel.org 自动选择新版本。源码测试不等同于新编译固件的设备验收；本次未重建或刷写固件。原发布的完整 FCC 周期、全区间 SOC 精度等验证边界见保留的发布说明。
+
+## charge2 测试固件装配
+
+`tools/build-charge2-test.py` 是独立的测试包装配入口，不会改动上面的固定发布装配器，也不会编译内核。它要求一个干净且已提交的源码工作树，并验证官方 OpenWrt 根文件系统、回滚内核包、测试内核包、OpenWrt 签名 APK 索引和 `ucode-mod-socket` APK 的固定 SHA-256。装配器导出当前提交，并要求编译证明中的 `upstream/` 内核输入逐文件匹配该提交；测试包会记录源提交、内核输入哈希、编译器、内核配置哈希和构建日志。
+
+先用 Windows Git 从干净提交导出源码；导出脚本会拒绝未提交或未跟踪的文件：
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File tools/export-charge2-test-source.ps1 `
+  -Repo . -OutDir C:\mu300-charge2-test-source
+```
+
+然后在 Linux/WSL 准备 Python 3.12+、GNU `tar`/`gzip`/`patch`、`qemu-aarch64-static`，以及本地固定输入：官方 `mu300-openwrt-luci-rootfs.tar.gz`、官方 `mu300-kernel.tar.gz`、重新编译的 `mu300-kernel-7.2.tar.gz`、签名 `packages.adb` 和对应 APK。先用编译输入核验工具比较最终 Git 快照与实际内核编译树，并收集 compiler、`.config` 和构建日志：
+
+```sh
+python3 tools/capture-charge2-kernel-provenance.py \
+  --source-archive /mnt/c/mu300-charge2-test-source/source.snapshot.tar \
+  --source-metadata /mnt/c/mu300-charge2-test-source/source.snapshot.json \
+  --build-root /root/u30air-charge2-test-20261012-build \
+  --kernel-bundle /root/u30air-charge2-test-20261012-build/release/mu300-kernel-7.2.tar.gz \
+  --out /root/u30air-charge2-test-20261012-build/kernel-evidence
+```
+
+再装配完整目录和 ZIP：
+
+```sh
+python3 tools/build-charge2-test.py \
+  --source-archive /mnt/c/mu300-charge2-test-source/source.snapshot.tar \
+  --source-metadata /mnt/c/mu300-charge2-test-source/source.snapshot.json \
+  --official-rootfs /path/to/mu300-openwrt-luci-rootfs.tar.gz \
+  --rollback-kernel /path/to/mu300-kernel.tar.gz \
+  --kernel /path/to/mu300-kernel-7.2.tar.gz \
+  --apk-index /path/to/packages.adb \
+  --apk /path/to/ucode-mod-socket-2026.01.16~85922056-r2.apk \
+  --kernel-provenance /root/u30air-charge2-test-20261012-build/kernel-evidence/BUILD-PROVENANCE.json \
+  --kernel-evidence /root/u30air-charge2-test-20261012-build/kernel-evidence \
+  --out /path/to/charge2-test1-20261012
+```
+
+命令会生成完整包目录和同名 ZIP，并将完整活动源码、固定输入副本、构建证明和哈希清单放入包内。`charge2-test1-20261012` 明确是测试候选；除非另行完成设备启动、无线、充电和稳定性验证，不得将其标成稳定发布。历史 `experimental/u30air-charge2/build-full-release.py` 仍保留原固定哈希，只能重装原发布资产；它不包含新 Wi-Fi/WCN 模块和本次新增运行时，禁止使用旧 kernel 与新源码拼装并声称是这份测试固件。根目录 `build-full-release.py` 在识别到此测试源码时会拒绝运行，避免意外用旧 pin 资产装配测试源。

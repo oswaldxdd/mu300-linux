@@ -411,7 +411,7 @@ if (selected !== true) throw Error('the Bootstrap token bridge must survive the 
 
 
 VIEWS = APP / 'htdocs/luci-static/resources/view/mu300'
-VIEW_NAMES = ('home', 'locks', 'sms', 'at', 'settings', 'device', 'languages', 'ttl')
+VIEW_NAMES = ('home', 'locks', 'sms', 'at', 'settings', 'device', 'languages', 'ttl', 'cpu', 'traffic')
 CJK_RE = re.compile('[\u2e80-\u9fff\uf900-\ufaff\uff00-\uffef]')
 
 
@@ -734,6 +734,18 @@ rpcReply = { ok: 0, error: 'Invalid TTL' }; await V.set(null, 64); await flush()
 rpcReply = { ok: 1, enabled: 1, value: 65, backend: 'tc', offload: 1, iface: [ 'sipa_eth0' ] };
 await V.set(null, 65); await flush(); await flush();
 return notes();'''
+
+    CPU = '''
+V.render({ ok: 1, profile: 'balanced', throttling: 0, policies: [
+    { cpus: '0-3', governor: 'schedutil', cur: 1200, min: 600, max: 2000, hwmax: 2000 } ] });
+await flush(); return shown();'''
+
+    TRAFFIC = '''
+V.render({ ok: 1, available: 1, device: 'sipa_eth0', since: 1790000000, reset_day: 1,
+    today: { date: '2026-10-12', rx: 1024, tx: 2048 },
+    cycle: { start: '2026-10-01', last: '2026-10-31', days_left: 20, used: 3072, rx: 1024, tx: 2048, adj: 0 },
+    cap: { bytes: 0, warn: 90, cut: 0, cut_active: 0, level: 'none' }, pending: { rx: 0, tx: 0 },
+    days: [], cycles: [] }); await flush(); return shown();'''
 
     # a backend error on each page: (view, body returning what was shown, [(template, error, detail)]); the
     # page shows the error through the catalog, inside its template if any, and the detail after it as data

@@ -115,6 +115,9 @@ proto_mu300cell_setup() {
 		# The network assigned IPv6. Link-local from its interface identifier, as 3GPP has the UE do, then
 		# odhcp6c learns the /64 from the router advertisement; extendprefix hands that single /64 to the LAN,
 		# where odhcpd advertises it (lan ip6assign 64) - the same as uqmi does for QMI modems.
+		# The teardown can switch IPv6 off; netifd does not re-enable it for this persistent bearer on WAN restart.
+		[ -w "/proc/sys/net/ipv6/conf/$ifname/disable_ipv6" ] &&
+			echo 0 > "/proc/sys/net/ipv6/conf/$ifname/disable_ipv6"
 		ip -6 addr add "fe80::$iid/64" dev "$ifname" 2>/dev/null
 		zone=$(fw4 -q network "$config" 2>/dev/null)
 		json_init

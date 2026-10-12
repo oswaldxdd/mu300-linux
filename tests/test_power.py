@@ -977,6 +977,35 @@ class Incident(DaemonTest):
             self.power(shell, 'wake')
             self.assertEqual(pol.read_text().strip(), '1500000')
 
+    def test_wake_with_a_thermal_alarm_restores_cpu7_without_raising_the_hot_cap(self):
+        for shell in self.each_shell():
+            self.setUp()
+            pol = self.root / 'sys/devices/system/cpu/cpufreq/policy4'
+            pol.mkdir(parents=True, exist_ok=True)
+            (pol / 'cpuinfo_min_freq').write_text('768000\n')
+            (pol / 'cpuinfo_max_freq').write_text('2301000\n')
+            (pol / 'scaling_available_frequencies').write_text('768000 1200000 1500000 2301000\n')
+            (pol / 'scaling_available_governors').write_text('schedutil performance\n')
+            (pol / 'scaling_min_freq').write_text('768000\n')
+            (pol / 'scaling_max_freq').write_text('1200000\n')   # thermal-guard's live cap
+            (pol / 'scaling_governor').write_text('schedutil\n')
+            cpu7 = self.root / 'sys/devices/system/cpu/cpu7'
+            cpu7.mkdir(parents=True, exist_ok=True)
+            (cpu7 / 'online').write_text('0\n')
+            (self.run_dir / 'mu300/power').mkdir(parents=True, exist_ok=True)
+            (self.run_dir / 'mu300/power/cpu-max4').write_text('2301000\n')
+            (self.run_dir / 'mu300/thermal-alarm').touch()
+            cpu_conf = self.tmp / 'cpu.conf'
+            cpu_conf.write_text('PROFILE=performance\n')
+
+            r = self.power(shell, 'wake', MU300_CPU_BIN=BIN / 'mu300-cpu', MU300_CPU_CONF=cpu_conf)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertEqual((cpu7 / 'online').read_text().strip(), '1')
+            self.assertEqual((pol / 'scaling_max_freq').read_text().strip(), '1200000')
+            ceiling = (self.run_dir / 'mu300/cpu-ceiling').read_text().splitlines()
+            self.assertIn('policy4=2301000', ceiling)
+            self.assertFalse((self.run_dir / 'mu300/power/cpu-max4').exists())
+
     # --- deadlines
     def hung(self, name):
         """NAME never returns (it notes its pid, to check that it was killed)."""

@@ -167,16 +167,15 @@ return view.extend({
 				} });
 		};
 		this.Q('lock-refresh').onclick = function() {
-			var btn = this;
+			var btn = this, t0 = Date.now();
 			M.busy(btn, true);
-			self.note(_('Reading the modem directly (a few seconds at most)…'), 'busy');
+			self.note(_('Refresh started; waiting for the modem status…'), 'busy');
 			L.resolveDefault(M.callLockFresh('1')).then(function(l) {
-				M.busy(btn, false);
 				self.lastLock = l || {};
 				self.paint();
-				self.note(_('Refreshed'), 'success');
 				var nb = self.Q('neigh');
 				if (nb && self.lastCell) nb.innerHTML = M.neighborRows(self.lastCell, self.lastLock.cells || []);
+				self.readback(t0, btn);
 			}, function() { M.busy(btn, false); self.note(_('Refresh failed'), 'error'); });
 			self.loadServing();
 		};

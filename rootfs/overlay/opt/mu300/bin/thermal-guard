@@ -38,14 +38,28 @@ battery() {  # the battery's temperature in tenths of a degree; the U30 Air only
     done
 }
 
-# step POLICY DIR (-1 lower, +1 higher): move scaling_max_freq to the neighbouring available frequency
+# A profile ceiling is shared with mu300-cpu; the charging boot's idle eco also caps policy4 at 1.5 GHz.
+CEILING=$R/run/mu300/cpu-ceiling
+ceiling() {  # ceiling POLICYDIR: profile ceiling, bounded by idle eco where applicable
+    local name=${1##*/} v=
+    [ -r "$CEILING" ] && v=$(sed -n "s/^$name=//p" "$CEILING" | tail -n1)
+    case $v in ''|*[!0-9]*) v=$(cat "$1/cpuinfo_max_freq" 2>/dev/null) ;; esac
+    if [ "$name" = policy4 ] && [ -e "$R/run/mu300/power/cpu-max4" ]; then
+        case $v in ''|*[!0-9]*) v=1500000 ;; *) [ "$v" -le 1500000 ] || v=1500000 ;; esac
+    fi
+    echo "$v"
+}
+
+# step POLICY DIR (-1 lower, +1 higher): move scaling_max_freq to the neighbouring available frequency; never lift
+# above the user's profile ceiling (and, during idle eco, policy4's 1.5 GHz ceiling).
 step() {
-    local p=$1 dir=$2 cur prev= f next=
+    local p=$1 dir=$2 cur prev= f next= ceil
     read -r cur < "$p/scaling_max_freq"
+    ceil=$(ceiling "$p")
     for f in $(tr ' ' '\n' < "$p/scaling_available_frequencies" | sort -n); do
         if [ "$dir" -lt 0 ]; then
             [ "$f" -lt "$cur" ] && next=$f
-        elif [ -z "$next" ] && [ "$f" -gt "$cur" ]; then
+        elif [ -z "$next" ] && [ "$f" -gt "$cur" ] && [ -z "$ceil" -o "$f" -le "${ceil:-$f}" ]; then
             next=$f
         fi
     done

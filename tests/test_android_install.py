@@ -10,6 +10,143 @@ from helpers import TOP, ShellTest
 from test_boot_init import fake_ext4
 
 SRC = (TOP / 'tools' / 'android-install.sh').read_text()
+DEVICE_LOCK = re.search(r'# --- device-lock begin\n(.*?)# --- device-lock end', SRC, re.S)
+DEVICE_LOCK = DEVICE_LOCK.group(1) if DEVICE_LOCK else ''
+
+
+class DeviceLock(ShellTest):
+    def setUp(self):
+        super().setUp()
+        self.assertTrue(DEVICE_LOCK, 'android-install.sh has no device lock block')
+        self.data_parent = self.tmp / 'data'
+        self.parent = self.data_parent / 'adb'
+        self.parent.mkdir(parents=True)
+        self.root = self.parent / 'lock-root'
+        self.lock = self.root / 'active'
+        self.block = self.lock_block()
+        self.stub('id', '''case "$1" in
+  -u) [ "$2" = shell ] && echo "${LOCK_SHELL_UID:-2000}" || echo "${LOCK_CALLER_UID:-0}" ;;
+  -G) [ "$2" = shell ] && echo "${LOCK_SHELL_GROUPS:-2000}" || exit 1 ;;
+  *) exit 1 ;;
+esac''')
+        self.stub('ls', '''if [ "$1" = -ldn ]; then
+case "$2" in
+  */data) mode=${DATA_PARENT_MODE:-drwxrwx--x}; owner=${DATA_PARENT_UID:-1000}; group=${DATA_PARENT_GID:-1000} ;;
+  */adb) mode=${LOCK_PARENT_MODE:-drwxr-xr-x}; owner=${LOCK_PARENT_UID:-0}; group=${LOCK_PARENT_GID:-0} ;;
+  */lock-root) mode=${LOCK_ROOT_MODE:-drwx------}; owner=${LOCK_ROOT_UID:-0} ;;
+  */active) mode=${LOCK_ACTIVE_MODE:-drwx------}; owner=${LOCK_ACTIVE_UID:-0} ;;
+  *) exec /bin/ls "$@" ;;
+esac
+echo "$mode 2 $owner ${group:-0} 40 Jan 1 00:00 $2"
+else exec /bin/ls "$@"; fi''')
+
+    def lock_block(self):
+        block = re.sub(r'^DEVICE_DATA_PARENT=.*$', f'DEVICE_DATA_PARENT="{self.data_parent}"', DEVICE_LOCK, flags=re.M)
+        block = re.sub(r'^DEVICE_LOCK_PARENT=.*$', f'DEVICE_LOCK_PARENT="{self.parent}"', block, flags=re.M)
+        block = re.sub(r'^DEVICE_LOCK_ROOT=.*$', f'DEVICE_LOCK_ROOT="{self.root}"', block, flags=re.M)
+        return re.sub(r'^DEVICE_LOCK=.*$', f'DEVICE_LOCK="{self.lock}"', block, flags=re.M)
+
+    def test_lock_is_owned_then_released(self):
+        for shell in self.each_shell():
+            shutil.rmtree(self.root, ignore_errors=True)
+            self.block = self.lock_block()
+            r = self.sh(shell, self.block + '\ninstall_lock_take\ntest "$(cat "$DEVICE_LOCK/pid")" = "$$"\ninstall_lock_drop\ntest ! -e "$DEVICE_LOCK"\necho lock-ok')
+            self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+            self.assertIn('lock-ok', r.stdout)
+            self.assertFalse(self.lock.exists())
+
+    def test_existing_lock_fails_closed_without_removing_it(self):
+        for shell in self.each_shell():
+            self.root.mkdir(exist_ok=True)
+            self.lock.mkdir(mode=0o700)
+            pid = self.lock / 'pid'
+            pid.write_text('12345\n')
+            r = self.sh(shell, self.block + '\ninstall_lock_take')
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn('another installer is running or a stale lock exists', r.stderr)
+            self.assertEqual(pid.read_text(), '12345\n')
+            pid.unlink()
+            self.lock.rmdir()
+
+    def test_symlink_lock_fails_closed_without_touching_target(self):
+        self.root.mkdir()
+        target = self.tmp / 'lock-target'
+        target.mkdir()
+        marker = target / 'marker'
+        marker.write_text('untouched\n')
+        try:
+            self.lock.symlink_to(target, target_is_directory=True)
+        except (OSError, NotImplementedError) as e:
+            self.skipTest(f'symlinks unavailable: {e}')
+        for shell in self.each_shell():
+            r = self.sh(shell, self.block + '\ninstall_lock_take')
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn('is a symbolic link', r.stderr)
+            self.assertTrue(marker.exists())
+            self.assertEqual(marker.read_text(), 'untouched\n')
+
+    def test_world_writable_parent_is_refused_before_creating_lock_root(self):
+        for shell in self.each_shell():
+            r = self.sh(shell, self.block + '\ninstall_lock_take', DATA_PARENT_MODE='drwxrwxrwx')
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn('writable by Android shell (other write)', r.stderr)
+            self.assertFalse(self.root.exists())
+
+    def test_shell_group_writable_data_parent_is_refused(self):
+        for shell in self.each_shell():
+            r = self.sh(shell, self.block + '\ninstall_lock_take', DATA_PARENT_GID='2000')
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn('writable by Android shell (group write)', r.stderr)
+            self.assertFalse(self.root.exists())
+
+    def test_non_root_parent_is_refused(self):
+        for shell in self.each_shell():
+            r = self.sh(shell, self.block + '\ninstall_lock_take', LOCK_PARENT_UID='1000')
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn('is not owned by root', r.stderr)
+            self.assertFalse(self.root.exists())
+
+    def test_non_root_installer_is_refused(self):
+        for shell in self.each_shell():
+            r = self.sh(shell, self.block + '\ninstall_lock_take', LOCK_CALLER_UID='2000')
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn('the device installer must run as root', r.stderr)
+            self.assertFalse(self.root.exists())
+
+    def test_symlink_parent_is_refused_without_touching_target(self):
+        shutil.rmtree(self.data_parent)
+        target = self.tmp / 'data-target'
+        target.mkdir()
+        try:
+            self.data_parent.symlink_to(target, target_is_directory=True)
+        except (OSError, NotImplementedError) as e:
+            self.skipTest(f'symlinks unavailable: {e}')
+        self.parent = self.data_parent / 'adb'
+        self.root = self.parent / 'lock-root'
+        self.lock = self.root / 'active'
+        self.block = self.lock_block()
+        for shell in self.each_shell():
+            r = self.sh(shell, self.block + '\ninstall_lock_take')
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn('is missing, not a directory, or a symbolic link', r.stderr)
+            self.assertFalse((target / 'lock-root').exists())
+
+    def test_insecure_existing_lock_root_is_refused(self):
+        self.root.mkdir()
+        for mode, uid, message in (('drwxrwxrwx', '0', 'expected drwx------'),
+                                   ('drwx------', '1000', 'is not owned by root')):
+            with self.subTest(mode=mode, uid=uid):
+                for shell in self.each_shell():
+                    r = self.sh(shell, self.block + '\ninstall_lock_take', LOCK_ROOT_MODE=mode, LOCK_ROOT_UID=uid)
+                    self.assertNotEqual(r.returncode, 0)
+                    self.assertIn(message, r.stderr)
+                    self.assertFalse(self.lock.exists())
+
+    def test_entrypoint_holds_lock_before_loading_config_and_uses_one_cleanup(self):
+        self.assertLess(SRC.index('install_lock_take\n'), SRC.index('. $T/mu300-install.env'))
+        self.assertLess(SRC.index('install_cleanup() {'), SRC.index("trap 'install_cleanup' EXIT"))
+        self.assertIn("trap 'install_cleanup' EXIT", SRC)
+        self.assertNotRegex(SRC, r"trap 'sync; sh \$T/android-mount-mu300root\.sh -u")
 
 
 class SdCard(ShellTest):
@@ -357,7 +494,7 @@ class Systems(ShellTest):
         self.stub('sed', f'S={real}\nif [ "$1" = -i ]; then shift; if "$S" --version >/dev/null 2>&1; then exec "$S" -i "$@"; '
                          'else exec "$S" -i "" "$@"; fi; fi; exec "$S" "$@"')
         self.wipe = self.block('legacy-wipe')
-        self.install = self.block('install-os')
+        self.install = self.block('user-packages') + self.block('install-os')
 
     def block(self, name):
         m = re.search(rf'# --- {name} begin\n(.*?)# --- {name} end', SRC, re.S)

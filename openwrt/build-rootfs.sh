@@ -44,6 +44,9 @@ fi
 # sipa_eth0 into fw4's software flowtable (applied below, the build fails when it no longer applies)
 FW4PATCH=$TOP/openwrt/patches/fw4-sipa-offload.patch
 [ -s "$FW4PATCH" ] || { echo "missing $FW4PATCH" >&2; exit 1; }
+# The SC2355 has no radar detection. Keep OpenWrt's hostapd generator from selecting DFS channels.
+NODFSPATCH=$TOP/openwrt/patches/wifi-scripts-no-dfs.patch
+[ -s "$NODFSPATCH" ] || { echo "missing $NODFSPATCH" >&2; exit 1; }
 # the docker mounts of the panel system, as the positional parameters (OUT is read above): each path stays one
 # argument, spaces and all
 set --
@@ -114,7 +117,7 @@ done
 # shellcheck disable=SC2046
 docker run --rm --platform linux/arm64 \
   -v "$TOP/rootfs/overlay/opt/mu300":/in/opt-mu300:ro -v "$TOP/rootfs/overlay/etc/mu300/vpn.conf.example":/in/vpn.conf.example:ro -v "$TOP/openwrt/overlay":/in/overlay:ro \
-  -v "$FW4PATCH":/in/fw4-sipa-offload.patch:ro \
+  -v "$FW4PATCH":/in/fw4-sipa-offload.patch:ro -v "$NODFSPATCH":/in/wifi-scripts-no-dfs.patch:ro \
   -v "$TOP/boot/module-order.txt":/in/module-order.txt:ro -v "$IN/out/modules":/in/modules:ro \
   $(opt out/modules.builtin modules.builtin) $(opt out/modules.builtin.modinfo modules.builtin.modinfo) \
   $(opt firmware firmware) $(opt android-subset android-subset) $(opt android-gpu-subset android-gpu-subset) \
@@ -138,8 +141,11 @@ apk add wpad-basic-mbedtls wifi-scripts iwinfo wireless-regdb iw bash ip-full co
 # has some of them only
 apk add wireguard-tools luci-proto-wireguard ppp-mod-pptp xl2tpd 6in4 6rd ds-lite gre luci-proto-gre vxlan \
     luci-proto-vxlan ipset sqm-scripts luci-app-sqm >/dev/null
-# the pinned Aurora theme
-[ -d /in/luci-plugin ] && apk add --allow-untrusted /in/luci-theme-aurora.apk >/dev/null
+# the pinned Aurora theme and raw ICMPv6 RA helper used to deprecate a renumbered LAN prefix
+[ -d /in/luci-plugin ] && {
+    apk add --allow-untrusted /in/luci-theme-aurora.apk >/dev/null
+    apk add ucode-mod-socket >/dev/null
+}
 # ujail drops CAP_PERFMON (38), which this 5.4 kernel does not know: jailed services (dnsmasq, ntpd) crash-loop
 apk del procd-ujail procd-seccomp >/dev/null 2>&1 || true
 # online firmware upgrades flash whole-disk armsr images: that would overwrite the eMMC, so remove them
@@ -175,18 +181,29 @@ printf "127.0.0.1\tlocalhost\n\n::1\tlocalhost ip6-localhost ip6-loopback\nff02:
 printf "mu300\n" > $R/etc/hostname   # the real one comes from uci (etc/uci-defaults/90-mu300)
 cp -a /in/opt-mu300 $R/opt/mu300
 cp -a /in/overlay/. $R/
+mkdir -p $R/etc/mu300
+[ -f $R/etc/hotplug.d/ntp/20-mu300-clock ] || { echo "required hotplug helper missing: /etc/hotplug.d/ntp/20-mu300-clock" >&2; exit 1; }
+chmod 0755 $R/etc/hotplug.d/ntp/20-mu300-clock
+chmod 0755 $R/opt/mu300/bin/mu300-user-packages
+# Record every package in this image from the actual APK database, including dependencies; /etc/apk/world alone is
+# only the manually selected set and cannot distinguish image packages from later user installs.
+(MU300_LIB=1; . /in/opt-mu300/bin/mu300-update; upk_installed "$R" openwrt) > $R/etc/mu300/image-packages
+[ -s $R/etc/mu300/image-packages ] || { echo "no image package list from /lib/apk/db/installed" >&2; exit 1; }
 # mu300cell reports sipa_eth0 as l3_device only, so fw4 leaves it out of its software flowtable and the cellular
 # downlink takes the slow forwarding path. --fuzz=0: a changed fw4 that no longer matches fails the build.
 # (patch goes into the build container only: the image was copied above)
 apk add patch >/dev/null
 patch --batch --fuzz=0 -d $R -p1 -i /in/fw4-sipa-offload.patch
 grep -q sipa_eth0 $R/usr/share/ucode/fw4.uc || { echo "fw4 patch not applied" >&2; exit 1; }
+# The Wi-Fi driver has no radar detector: hostapd must not start DFS CAC and leave the AP down.
+patch --batch --fuzz=0 -d $R -p1 -i /in/wifi-scripts-no-dfs.patch
+grep -q "device_no_dfs(config);" $R/usr/share/ucode/wifi/hostapd.uc || { echo "wifi-scripts DFS patch not applied" >&2; exit 1; }
 apk del patch >/dev/null   # out of packages.txt below, which lists what the image has
 if [ -d /in/luci-plugin ]; then
     [ -d /in/luci-overlay ] && cp -a /in/luci-overlay/. $R/
     cp -a /in/luci-plugin/root/. $R/
     cp -a /in/luci-plugin/htdocs/. $R/www/
-    chmod 0755 $R/etc/init.d/unisoc-modem-ui $R/etc/hotplug.d/net/90-unisoc-usb-host $R/etc/hotplug.d/iface/90-unisoc-usb-host $R/usr/libexec/rpcd/mu300dash $R/usr/libexec/unisoc-modem/*
+    chmod 0755 $R/etc/init.d/unisoc-modem-ui $R/etc/hotplug.d/net/90-unisoc-usb-host $R/etc/hotplug.d/iface/90-unisoc-usb-host $R/usr/libexec/rpcd/mu300dash $R/usr/libexec/unisoc-modem/* $R/opt/mu300/bin/ra-deprecate
     # the panel catalogs, named as LuCI names the language (base.zh-cn.lmo: mu300.zh-cn.lmo)
     for f in /in/catalogs/mu300.*.lmo; do cp "$f" $R/usr/lib/lua/luci/i18n/; done
     [ -s $R/www/luci-static/aurora/main.css ] || { echo "Aurora theme assets missing" >&2; exit 1; }
@@ -241,9 +258,13 @@ printf "%s\n" "${MU300_VERSION:-dev}" > $R/etc/mu300/image-version
 # enable the services (rc.common "enable" needs ubus, which is not running in the build container)
 # accounts still those of the image until an installer or mu300-update puts the device ones in place
 : > $R/etc/.mu300-accounts-from-image
-for s in mu300-accounts mu300-vendor mu300-hw mu300-post mu300-toolkit mu300-atd mu300-modem-log mu300-wifi-client mu300-buttons mu300-power; do
-    n=$(sed -n "s/^START=//p" $R/etc/init.d/$s)
-    ln -sf ../init.d/$s $R/etc/rc.d/S$n$s
+for s in mu300-accounts mu300-vendor mu300-hw mu300-post mu300-toolkit mu300-atd mu300-modem-log mu300-wifi-client mu300-buttons mu300-cpu mu300-traffic mu300-power mu300-user-packages; do
+    [ -f "$R/etc/init.d/$s" ] || { echo "required init script missing: /etc/init.d/$s" >&2; exit 1; }
+    case $s in mu300-cpu|mu300-traffic|mu300-user-packages) chmod 0755 "$R/etc/init.d/$s" ;; esac
+    [ -x "$R/etc/init.d/$s" ] || { echo "required init script is not executable: /etc/init.d/$s" >&2; exit 1; }
+    n=$(sed -n "s/^START=//p" "$R/etc/init.d/$s")
+    case $n in [0-9][0-9]) ;; *) echo "invalid START value in /etc/init.d/$s" >&2; exit 1 ;; esac
+    ln -sf ../init.d/$s "$R/etc/rc.d/S$n$s"
 done
 if [ -d /in/luci-plugin ]; then
     n=$(sed -n "s/^START=//p" $R/etc/init.d/unisoc-modem-ui)
@@ -268,6 +289,9 @@ for b in power wps rfkill; do
     printf "#!/bin/sh\n# mu300-buttons owns the keys (see /opt/mu300/bin/mu300-buttons)\nexit 0\n" > "$R/etc/rc.button/$b"
     chmod 0755 "$R/etc/rc.button/$b"
 done
+# Config files left by packages deliberately removed from the image or replaced during assembly are not defaults
+# for future updates. In particular, the updater will not carry attendedsysupgrade or stale .apk-new files forward.
+rm -f $R/etc/config/attendedsysupgrade $R/etc/config/*.apk-new
 # what apk installed, for comparing two builds (packages on the release feed are not pinned)
 apk list --installed | sort > $R/etc/mu300/packages.txt
 # busybox PATH is /usr/sbin:/usr/bin:/sbin:/bin, so the commands go into /usr/bin (the same list as Ubuntu)

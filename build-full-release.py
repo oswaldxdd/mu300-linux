@@ -25,6 +25,16 @@ def main():
     parser.add_argument('--kernel', type=Path, required=True)
     parser.add_argument('--out', type=Path, required=True)
     args = parser.parse_args()
+    # This root wrapper is pinned to the historical release assets. The test source
+    # has a separate assembler that requires its freshly built kernel and packages.
+    if ((TOP / 'docs/U30AIR-TEST1.md').is_file()
+            or (TOP / 'tools/build-charge2-test.py').is_file()):
+        parser.error(
+            'this source tree contains the charge2 test candidate; the historical root wrapper '
+            'would omit its runtime changes and pair them with pinned old assets. Use '
+            'tools/build-charge2-test.py with the fresh candidate kernel, provenance, official '
+            'OpenWrt rootfs, rollback kernel, signed APK index, and ucode-mod-socket APK.'
+        )
     # Export tracked, committed build sources only. Never copy the whole workspace,
     # its experimental archive, device backups, credentials or binary outputs.
     dirty = subprocess.check_output([

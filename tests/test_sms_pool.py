@@ -20,6 +20,7 @@ from test_mu300dash_security import DASH, JSONFILTER
 
 LUCI = TOP / 'openwrt' / 'luci-overlay'
 SMS = LUCI / 'opt' / 'mu300' / 'bin' / 'mu300-sms'
+SYSTEM_SMS = TOP / 'rootfs' / 'overlay' / 'opt' / 'mu300' / 'bin' / 'sms'
 SMSD = LUCI / 'opt' / 'mu300' / 'bin' / 'mu300-smsd'
 INITD = LUCI / 'etc' / 'init.d' / 'mu300-smsd'
 AWK = TOP / 'rootfs' / 'overlay' / 'opt' / 'mu300' / 'lib' / 'sms-pdu.awk'
@@ -303,6 +304,24 @@ class Pool(ShellTest):
             self.assertIn('1 waiting for its other parts, 2 moved off the SIM', r.stdout)
             self.assertEqual(self.cmgd(), ['AT+CMGD=1', 'AT+CMGD=2'])
 
+    def test_a_long_message_part_is_saved_after_the_partial_wait_and_removed_only_after_pooling(self):
+        def part(ref, total, n, text):
+            ud = bytes([5, 0, 3, ref, total, n]).hex().upper() + text.encode('utf-16-be').hex().upper()
+            return f'00440B911346610089F6000820806291731448{len(ud) // 2:02X}{ud}'
+        half = part(0x43, 2, 1, 'half')
+        for shell in self.each_shell():
+            self.fresh()
+            self.answer('CMGL4', f'+CMGL: 9,0,,30\n{half}\nOK\n')
+            self.cmgr(9, half)
+            r = self.run_sms(shell, 'sync', MU300_SMS_PARTIAL_WAIT=0)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertIn('sync: 1 new, 0 on the SIM, 1 in the pool, 1 moved off the SIM', r.stdout)
+            [(headers, body)] = self.msgs().values()
+            self.assertEqual(headers['incomplete'], '1/2')
+            self.assertRegex(headers['partial'], r'^[0-9a-f]+$')
+            self.assertIn('half[...]', body)
+            self.assertEqual(self.cmgd(), ['AT+CMGD=9'])
+
     def test_a_message_deleted_from_the_pool_goes_from_the_sim_too(self):
         for shell in self.each_shell():
             self.fresh()
@@ -467,6 +486,19 @@ class Pool(ShellTest):
                 self.assertEqual(self.run_sms(shell, 'send', '--stdin', '123', stdin=text).returncode, 0)
             (self.tmp / 'at' / 'CMGS').write_text('+CMS ERROR: 500\n')
             shutil.rmtree(self.pool)
+
+    def test_system_sms_sends_the_cmgs_pdu_in_one_at_request(self):
+        self.answer('CMGS', '+CMGS: 3\nOK\n')
+        for shell in self.each_shell():
+            self.fresh()
+            self.answer('CMGS', '+CMGS: 3\nOK\n')
+            r = self.script(shell, SYSTEM_SMS, 'send', '123', 'hello', MU300_SMS_AWK=AWK,
+                            MU300_SMS_STATE=self.tmp / 'system-sms')
+            self.assertEqual(r.returncode, 0, r.stderr)
+            log = self.at_log()
+            self.assertEqual(len(log), 2, log)
+            self.assertEqual(log[0], 'AT+CMGF=0')
+            self.assertRegex(log[1], r'^AT\+CMGS=[0-9]+\^[0-9A-F]+~$')
 
     def stat_tree(self, *dirs):
         """{path: (mtime_ns, ctime_ns, size, mode)} of every file and directory under DIRS, the DIRS included."""

@@ -15,6 +15,9 @@ msgstr "네트워크 잠금"
 msgid "SMS"
 msgstr "SMS"
 
+msgid "Data usage"
+msgstr "데이터 사용량"
+
 msgid "AT terminal"
 msgstr "AT 터미널"
 
@@ -32,6 +35,9 @@ msgstr "언어"
 
 msgid "Power"
 msgstr "전원"
+
+msgid "CPU"
+msgstr "CPU"
 
 msgid "MU300 control center: status dashboard, network locks, AT terminal and SMS"
 msgstr "MU300 제어 센터: 상태 대시보드, 네트워크 잠금, AT 터미널 및 SMS"
@@ -105,6 +111,21 @@ msgstr "알 수 없는 번호"
 msgid "Select"
 msgstr "선택"
 
+msgid "This is a network or frequency scan: it takes one to three minutes, holds the modem's AT channel all that time, and mobile data may pause meanwhile. It runs in the background; the reply appears here when it is done."
+msgstr "네트워크 또는 주파수 검색입니다. 1~3분이 걸리고 그동안 모뎀의 AT 채널을 계속 점유하며, 그 사이 모바일 데이터가 일시 중지될 수 있습니다. 백그라운드에서 실행되며, 끝나면 응답이 여기에 표시됩니다."
+
+msgid "This changes a network mode, band or cell setting the modem stores: it stays in force after a reboot, and in Android too, where a network that does not match it shows as No Service. The Locks page shows these settings and resets them."
+msgstr "모뎀이 저장하는 네트워크 모드, 밴드 또는 셀 설정을 변경합니다. 재부팅 후에도 유지되며 Android에서도 적용되어, 맞지 않는 네트워크는 서비스 없음으로 표시됩니다. 잠금 페이지에서 이 설정을 확인하고 초기화할 수 있습니다."
+
+msgid "This switches the radio, the data connection or the modem itself: mobile data drops until it is restored, and this page may lose its connection for a while."
+msgstr "무선, 데이터 연결 또는 모뎀 자체를 전환합니다. 모바일 데이터는 복구될 때까지 끊기며, 이 페이지도 잠시 연결이 끊길 수 있습니다."
+
+msgid "This changes the data profiles (APNs) stored in the modem, which mobile data and Android use."
+msgstr "모뎀에 저장된 데이터 프로필(APN)을 변경합니다. 모바일 데이터와 Android가 이를 사용합니다."
+
+msgid "This changes the SIM's PIN lock or enters a PIN: wrong PINs block the SIM until its PUK is entered."
+msgstr "SIM의 PIN 잠금을 변경하거나 PIN을 입력합니다. 잘못된 PIN을 입력하면 PUK를 입력할 때까지 SIM이 잠깁니다."
+
 msgid "Basic"
 msgstr "기본"
 
@@ -132,14 +153,104 @@ msgstr "준비됨."
 msgid "Session history (click to reuse)"
 msgstr "세션 기록 (클릭하여 재사용)"
 
+msgid "Running in the background (at most %d s); the reply appears here when it is done…"
+msgstr "백그라운드에서 실행 중(최대 %d초)입니다. 끝나면 응답이 여기에 표시됩니다…"
+
+msgid "The modem gave no final answer in time"
+msgstr "모뎀이 제시간에 최종 응답을 주지 않았습니다"
+
+msgid "%d s in the background"
+msgstr "백그라운드에서 %d초"
+
 msgid "(no output)"
 msgstr "(출력 없음)"
+
+msgid "This command changes the modem's state."
+msgstr "이 명령은 모뎀의 상태를 변경합니다."
+
+msgid "Not sent yet: waiting for confirmation"
+msgstr "아직 보내지 않음: 확인 대기 중"
+
+msgid "Send this AT command?"
+msgstr "이 AT 명령을 보낼까요?"
+
+msgid "Send anyway"
+msgstr "그래도 보내기"
+
+msgid "Not sent"
+msgstr "보내지 않음"
 
 msgid "Request failed"
 msgstr "요청 실패"
 
 msgid "(empty)"
 msgstr "(비어 있음)"
+
+msgid "Failed: %s"
+msgstr "실패: %s"
+
+msgid "Saved"
+msgstr "저장됨"
+
+msgid "Management connection lost"
+msgstr "관리 연결이 끊어졌습니다"
+
+msgid "CPU profile unavailable"
+msgstr "CPU profile unavailable"
+
+msgid "Power saving"
+msgstr "Power saving"
+
+msgid "Balanced"
+msgstr "Balanced"
+
+msgid "Performance"
+msgstr "Performance"
+
+msgid "Cores capped at about 60 %% of their maximum (cooler, less power)."
+msgstr "Cores capped at about 60 %% of their maximum (cooler, less power)."
+
+msgid "Schedutil across the full hardware range (the stock behaviour)."
+msgstr "Schedutil across the full hardware range (the stock behaviour)."
+
+msgid "Every cluster pinned at its hardware maximum."
+msgstr "Every cluster pinned at its hardware maximum."
+
+msgid "CPU profile"
+msgstr "CPU profile"
+
+msgid "A profile sets the CPU governor and the per-cluster frequency limits. It stays within the hardware frequency table and never changes the voltage, so it cannot overclock this SoC. The kernel keeps throttling at its thermal limit in every profile."
+msgstr "A profile sets the CPU governor and the per-cluster frequency limits. It stays within the hardware frequency table and never changes the voltage, so it cannot overclock this SoC. The kernel keeps throttling at its thermal limit in every profile."
+
+msgid "Saved profile: %s"
+msgstr "Saved profile: %s"
+
+msgid "Thermal throttling is active right now: the frequencies below are below the profile ceiling."
+msgstr "Thermal throttling is active right now: the frequencies below are below the profile ceiling."
+
+msgid "Clusters"
+msgstr "Clusters"
+
+msgid "Cores"
+msgstr "Cores"
+
+msgid "Governor"
+msgstr "Governor"
+
+msgid "Now"
+msgstr "Now"
+
+msgid "Min"
+msgstr "Min"
+
+msgid "Max"
+msgstr "Max"
+
+msgid "Hardware max"
+msgstr "Hardware max"
+
+msgid "Frequencies in MHz."
+msgstr "Frequencies in MHz."
 
 msgid "USB role"
 msgstr "USB 역할"
@@ -417,6 +528,9 @@ msgstr "장치 재시작"
 msgid "Switch to Android"
 msgstr "Android로 전환"
 
+msgid "Lock Linux"
+msgstr "Linux 잠금"
+
 msgid "Neighbor cells"
 msgstr "인접 셀"
 
@@ -434,9 +548,6 @@ msgstr "백그라운드에서 시작됨: %s"
 
 msgid "Done: %s"
 msgstr "완료: %s"
-
-msgid "Failed: %s"
-msgstr "실패: %s"
 
 msgid "Disconnecting data…"
 msgstr "데이터 연결 끊는 중…"
@@ -479,6 +590,24 @@ msgstr "전환 후 재부팅"
 
 msgid "Preparing Android boot and rebooting…"
 msgstr "Android 부팅 준비 및 재부팅 중…"
+
+msgid "Unlock Linux"
+msgstr "Linux 잠금 해제"
+
+msgid "After five boots in a row that do not finish, the device falls back to Android again."
+msgstr "완료되지 않은 부팅이 연속 다섯 번 발생하면 기기가 다시 Android로 돌아갑니다."
+
+msgid "Unlock"
+msgstr "잠금 해제"
+
+msgid "The device will never switch to Android by itself, not even after failed boots: Android only from this page (Switch to Android) or with mu300-next-boot android."
+msgstr "부팅에 실패해도 기기가 스스로 Android로 전환되지 않습니다. Android로는 이 페이지(Android로 전환) 또는 mu300-next-boot android로만 전환합니다."
+
+msgid "A new kernel from an update still gets its first boots on trial, and locks again once one of them succeeds."
+msgstr "업데이트로 받은 새 커널은 여전히 처음 부팅을 시험으로 진행하며, 그중 하나가 성공하면 다시 잠깁니다."
+
+msgid "If the system itself no longer starts, the device waits on USB (telnet) instead of going to Android."
+msgstr "시스템 자체가 더 이상 시작되지 않으면 기기는 Android로 전환하지 않고 USB(telnet)로 대기합니다."
 
 msgid "Hide SIM identifiers"
 msgstr "SIM 식별 정보 숨기기"
@@ -615,11 +744,8 @@ msgstr "온라인"
 msgid "AT adapter unavailable"
 msgstr "AT 어댑터를 사용할 수 없음"
 
-msgid "Saved"
-msgstr "저장됨"
-
-msgid "Management connection lost"
-msgstr "관리 연결이 끊어졌습니다"
+msgid "Linux locked"
+msgstr "Linux 잠김"
 
 msgid "Installing the language pack…"
 msgstr "언어 팩 설치 중…"
@@ -795,11 +921,8 @@ msgstr "시작 시 적용 끄기"
 msgid "Enable apply at startup"
 msgstr "시작 시 적용 켜기"
 
-msgid "Reading the modem directly (a few seconds at most)…"
-msgstr "모뎀에서 직접 읽는 중 (최대 몇 초)…"
-
-msgid "Refreshed"
-msgstr "새로 고쳐짐"
+msgid "Refresh started; waiting for the modem status…"
+msgstr "Refresh started; waiting for the modem status…"
 
 msgid "Refresh failed"
 msgstr "새로 고침 실패"
@@ -945,17 +1068,20 @@ msgstr "깨우기"
 msgid "Nobody connected means no Wi-Fi client and no computer on USB. The Wi-Fi key, a computer on USB or the charger wake the device."
 msgstr "연결된 사용자 없음은 Wi-Fi 클라이언트도 없고 USB에 연결된 컴퓨터도 없다는 뜻입니다. Wi-Fi 키, USB에 연결된 컴퓨터 또는 충전기가 장치를 깨웁니다."
 
-msgid "Automatic: plugged in / on battery"
-msgstr "자동: 전원 연결 / 배터리 사용"
-
-msgid "Switch to Saver under %"
-msgstr "다음 미만이면 절전으로 전환 %"
+msgid "This charger has no user charge limit. Native charger temperature and safety policy remains active."
+msgstr "This charger has no user charge limit. Native charger temperature and safety policy remains active."
 
 msgid "Stop charging at"
 msgstr "충전 중단 기준"
 
 msgid "80 % keeps the battery healthier on a device that stays plugged in."
 msgstr "80 %는 계속 전원에 연결해 두는 장치에서 배터리를 더 건강하게 유지합니다."
+
+msgid "Automatic: plugged in / on battery"
+msgstr "자동: 전원 연결 / 배터리 사용"
+
+msgid "Switch to Saver under %"
+msgstr "다음 미만이면 절전으로 전환 %"
 
 msgid "Keep as is"
 msgstr "그대로 유지"
@@ -983,9 +1109,6 @@ msgstr "유휴 시 모뎀"
 
 msgid "LEDs when idle"
 msgstr "유휴 시 LED"
-
-msgid "CPU"
-msgstr "CPU"
 
 msgid "Ignored lines in power.conf: %s"
 msgstr "power.conf에서 무시된 줄: %s"
@@ -1143,6 +1266,120 @@ msgstr "나: %s"
 msgid "Delete"
 msgstr "삭제"
 
+msgid "The data usage could not be read"
+msgstr "데이터 사용량을 읽을 수 없습니다"
+
+msgid "Today"
+msgstr "오늘"
+
+msgid "%s of %s"
+msgstr "%s / %s"
+
+msgid "This billing cycle"
+msgstr "이번 청구 기간"
+
+msgid "Days left in this cycle"
+msgstr "이번 기간 남은 일수"
+
+msgid "Received"
+msgstr "수신"
+
+msgid "Sent"
+msgstr "송신"
+
+msgid "Corrected by"
+msgstr "보정"
+
+msgid "Monthly cap"
+msgstr "월 한도"
+
+msgid "%s, warning at %d%%"
+msgstr "%s, %d%%에서 경고"
+
+msgid "None"
+msgstr "없음"
+
+msgid "The monthly cap is reached: mobile data was turned off. It comes back on when the next cycle starts."
+msgstr "월 한도에 도달했습니다: 모바일 데이터를 껐습니다. 다음 기간이 시작되면 다시 켜집니다."
+
+msgid "The monthly cap is reached"
+msgstr "월 한도에 도달했습니다"
+
+msgid "%d%% of the monthly cap is used"
+msgstr "월 한도의 %d%% 사용"
+
+msgid "%s waits for the clock: it has not been set over the network yet. It already counts towards this cycle and goes to its day once the clock is set."
+msgstr "%s은(는) 시계를 기다리는 중입니다: 시계가 아직 네트워크로 설정되지 않았습니다. 이미 이번 기간에 포함되며, 시계가 설정되면 해당 날짜로 기록됩니다."
+
+msgid "The interface %s is not there right now: nothing is counted until it comes back."
+msgstr "인터페이스 %s이(가) 지금 없습니다: 돌아올 때까지 아무것도 집계되지 않습니다."
+
+msgid "Counted on %s, both ways, as the operator counts it (a VPN's overhead included)."
+msgstr "%s에서 양방향으로, 통신사와 같은 방식으로 집계합니다 (VPN 오버헤드 포함)."
+
+msgid "The count is kept in memory and written to the disk every 30 minutes and at shutdown: a power cut loses at most the last half hour."
+msgstr "집계는 메모리에 보관되며 30분마다 그리고 종료 시 디스크에 기록됩니다: 정전 시 최대 마지막 30분만 손실됩니다."
+
+msgid "Counting since %s."
+msgstr "%s부터 집계 중."
+
+msgid "Per day"
+msgstr "일별"
+
+msgid "Date"
+msgstr "날짜"
+
+msgid "Total"
+msgstr "합계"
+
+msgid "Per billing cycle"
+msgstr "청구 기간별"
+
+msgid "Billing cycle"
+msgstr "청구 기간"
+
+msgid "Enter a size in GB, for example 50 or 2.5"
+msgstr "GB 단위로 크기를 입력하세요 (예: 50 또는 2.5)"
+
+msgid "Enter a percentage from 1 to 100"
+msgstr "1에서 100 사이의 백분율을 입력하세요"
+
+msgid "Turn mobile data off at the cap"
+msgstr "한도에서 모바일 데이터 끄기"
+
+msgid "When this cycle reaches the cap, mobile data is turned off: no internet through the operator until the next cycle starts, the cap is raised or this is turned off again. Turning mobile data back on by hand keeps it on until the next reboot."
+msgstr "이번 기간이 한도에 도달하면 모바일 데이터가 꺼집니다: 다음 기간이 시작되거나, 한도를 올리거나, 이 옵션을 다시 끌 때까지 통신사를 통한 인터넷을 사용할 수 없습니다. 모바일 데이터를 수동으로 다시 켜면 다음 재부팅까지 켜진 상태로 유지됩니다."
+
+msgid "Set"
+msgstr "설정"
+
+msgid "Clear the count"
+msgstr "집계 지우기"
+
+msgid "Every day and billing cycle counted so far is forgotten. Counting goes on from now."
+msgstr "지금까지 집계된 모든 날짜와 청구 기간이 삭제됩니다. 지금부터 다시 집계합니다."
+
+msgid "Billing cycle and cap"
+msgstr "청구 기간과 한도"
+
+msgid "A billing cycle starts on day"
+msgstr "청구 기간 시작일"
+
+msgid "31: on the last day of each month"
+msgstr "31: 매월 마지막 날"
+
+msgid "Monthly cap (GB, 0: none)"
+msgstr "월 한도 (GB, 0: 없음)"
+
+msgid "Warning at this percentage of the cap"
+msgstr "한도의 이 백분율에서 경고"
+
+msgid "Used so far in this cycle (GB)"
+msgstr "이번 기간 지금까지 사용량 (GB)"
+
+msgid "What the operator shows for this cycle (for example when counting started in the middle of it); the count is corrected to it."
+msgstr "통신사가 이번 기간에 대해 표시하는 사용량 (예: 기간 중간에 집계를 시작한 경우). 집계가 이 값으로 보정됩니다."
+
 msgid "Current setting"
 msgstr "현재 설정"
 
@@ -1169,9 +1406,6 @@ msgstr "이 커널에서는 TTL이 설정된 동안 방화벽 빠른 경로가 �
 
 msgid "Set %d"
 msgstr "%d(으)로 설정"
-
-msgid "Set"
-msgstr "설정"
 
 msgid "Enter a number from 1 to 255"
 msgstr "1부터 255까지의 숫자를 입력하세요"
@@ -1203,6 +1437,9 @@ msgstr "무선이 사용 중입니다. 다이얼 또는 워치독이 전환하�
 msgid "The action gave no valid reply"
 msgstr "작업에서 유효한 응답이 없습니다"
 
+msgid "The confirm parameter must be 0 or 1"
+msgstr "confirm 매개변수는 0 또는 1이어야 합니다"
+
 msgid "An AT command is one line of printable ASCII, at most 512 characters"
 msgstr "AT 명령은 출력 가능한 ASCII 한 줄이며, 최대 512자입니다"
 
@@ -1217,6 +1454,12 @@ msgstr "거부됨: 이 명령은 재부팅할 때까지 AT 포트를 멈추게 �
 
 msgid "Applying network locks: the modem is restarting (about half a minute), try again shortly"
 msgstr "네트워크 잠금 적용 중: 모뎀이 재시작 중입니다 (약 30초). 잠시 후 다시 시도하십시오"
+
+msgid "A long AT command is still running in the background; try again when it has finished"
+msgstr "긴 AT 명령이 아직 백그라운드에서 실행 중입니다. 끝난 뒤 다시 시도하세요"
+
+msgid "This command needs confirmation"
+msgstr "이 명령은 확인이 필요합니다"
 
 msgid "The AT channel is busy; the command was not sent, try again"
 msgstr "AT 채널이 사용 중입니다. 명령이 전송되지 않았으니 다시 시도하십시오"
@@ -1305,6 +1548,21 @@ msgstr "잘못된 전원 값"
 msgid "Invalid power request"
 msgstr "잘못된 전원 요청"
 
+msgid "The data usage adapter gave no valid reply"
+msgstr "데이터 사용량 어댑터가 올바른 응답을 주지 않았습니다"
+
+msgid "Unknown data usage setting"
+msgstr "알 수 없는 데이터 사용량 설정"
+
+msgid "Invalid value for this setting"
+msgstr "이 설정에 잘못된 값입니다"
+
+msgid "The CPU adapter gave no valid reply"
+msgstr "The CPU adapter gave no valid reply"
+
+msgid "Invalid CPU profile"
+msgstr "Invalid CPU profile"
+
 msgid "The languages adapter gave no valid reply"
 msgstr "언어 어댑터에서 유효한 응답이 없습니다"
 
@@ -1352,6 +1610,15 @@ msgstr "mu300-next-boot 실패"
 
 msgid "AT backend did not answer (radio off, modem restarting, or adapter unavailable)"
 msgstr "AT 백엔드가 응답하지 않았습니다 (무선 꺼짐, 모뎀 재시작 중 또는 어댑터 사용 불가)"
+
+msgid "The CPU profile could not be read"
+msgstr "The CPU profile could not be read"
+
+msgid "The CPU profile could not be set"
+msgstr "The CPU profile could not be set"
+
+msgid "Unknown CPU operation"
+msgstr "Unknown CPU operation"
 
 msgid "USB role adapter is not executable"
 msgstr "USB 역할 어댑터를 실행할 수 없습니다"
@@ -1458,6 +1725,15 @@ msgstr "잠글 서빙 셀이 없습니다"
 msgid "usage: power get|set KEY VALUE|wake|idle"
 msgstr "usage: power get|set KEY VALUE|wake|idle"
 
+msgid "Data usage is not available on this system"
+msgstr "이 시스템에서는 데이터 사용량을 사용할 수 없습니다"
+
+msgid "The setting could not be saved"
+msgstr "설정을 저장할 수 없습니다"
+
+msgid "Unknown data usage operation"
+msgstr "알 수 없는 데이터 사용량 작업"
+
 msgid "The TTL setting could not be read"
 msgstr "TTL 설정을 읽을 수 없습니다"
 
@@ -1466,30 +1742,3 @@ msgstr "TTL을 설정할 수 없습니다"
 
 msgid "Unknown TTL operation"
 msgstr "알 수 없는 TTL 작업"
-
-msgid "Lock Linux"
-msgstr "Linux 잠금"
-
-msgid "Unlock Linux"
-msgstr "Linux 잠금 해제"
-
-msgid "After five boots in a row that do not finish, the device falls back to Android again."
-msgstr "완료되지 않은 부팅이 연속 다섯 번 발생하면 기기가 다시 Android로 돌아갑니다."
-
-msgid "Unlock"
-msgstr "잠금 해제"
-
-msgid "The device will never switch to Android by itself, not even after failed boots: Android only from this page (Switch to Android) or with mu300-next-boot android."
-msgstr "부팅에 실패해도 기기가 스스로 Android로 전환되지 않습니다. Android로는 이 페이지(Android로 전환) 또는 mu300-next-boot android로만 전환합니다."
-
-msgid "A new kernel from an update still gets its first boots on trial, and locks again once one of them succeeds."
-msgstr "업데이트로 받은 새 커널은 여전히 처음 부팅을 시험으로 진행하며, 그중 하나가 성공하면 다시 잠깁니다."
-
-msgid "If the system itself no longer starts, the device waits on USB (telnet) instead of going to Android."
-msgstr "시스템 자체가 더 이상 시작되지 않으면 기기는 Android로 전환하지 않고 USB(telnet)로 대기합니다."
-
-msgid "Linux locked"
-msgstr "Linux 잠김"
-
-msgid "This charger has no user charge limit. Native charger temperature and safety policy remains active."
-msgstr "This charger has no user charge limit. Native charger temperature and safety policy remains active."

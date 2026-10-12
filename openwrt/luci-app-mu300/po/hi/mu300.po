@@ -15,6 +15,9 @@ msgstr "नेटवर्क लॉक"
 msgid "SMS"
 msgstr "SMS"
 
+msgid "Data usage"
+msgstr "डेटा उपयोग"
+
 msgid "AT terminal"
 msgstr "AT टर्मिनल"
 
@@ -32,6 +35,9 @@ msgstr "भाषाएँ"
 
 msgid "Power"
 msgstr "पावर"
+
+msgid "CPU"
+msgstr "CPU"
 
 msgid "MU300 control center: status dashboard, network locks, AT terminal and SMS"
 msgstr "MU300 नियंत्रण केंद्र: स्थिति डैशबोर्ड, नेटवर्क लॉक, AT टर्मिनल और SMS"
@@ -105,6 +111,21 @@ msgstr "अज्ञात नंबर"
 msgid "Select"
 msgstr "चुनें"
 
+msgid "This is a network or frequency scan: it takes one to three minutes, holds the modem's AT channel all that time, and mobile data may pause meanwhile. It runs in the background; the reply appears here when it is done."
+msgstr "यह नेटवर्क या फ़्रीक्वेंसी स्कैन है: इसमें एक से तीन मिनट लगते हैं, यह पूरे समय मॉडेम का AT चैनल घेरे रखता है, और इस बीच मोबाइल डेटा रुक सकता है। यह बैकग्राउंड में चलता है; पूरा होने पर जवाब यहाँ दिखेगा।"
+
+msgid "This changes a network mode, band or cell setting the modem stores: it stays in force after a reboot, and in Android too, where a network that does not match it shows as No Service. The Locks page shows these settings and resets them."
+msgstr "यह मॉडेम में सहेजी गई नेटवर्क मोड, बैंड या सेल सेटिंग बदलता है: यह रीबूट के बाद भी लागू रहती है, और Android में भी, जहाँ इससे मेल न खाने वाला नेटवर्क 'कोई सेवा नहीं' दिखता है। लॉक पेज इन सेटिंग्स को दिखाता है और रीसेट करता है।"
+
+msgid "This switches the radio, the data connection or the modem itself: mobile data drops until it is restored, and this page may lose its connection for a while."
+msgstr "यह रेडियो, डेटा कनेक्शन या ख़ुद मॉडेम को बदलता है: मोबाइल डेटा बहाल होने तक कट जाता है, और यह पेज कुछ देर के लिए कनेक्शन खो सकता है।"
+
+msgid "This changes the data profiles (APNs) stored in the modem, which mobile data and Android use."
+msgstr "यह मॉडेम में सहेजे गए डेटा प्रोफ़ाइल (APN) बदलता है, जिनका उपयोग मोबाइल डेटा और Android करते हैं।"
+
+msgid "This changes the SIM's PIN lock or enters a PIN: wrong PINs block the SIM until its PUK is entered."
+msgstr "यह SIM का PIN लॉक बदलता है या PIN दर्ज करता है: गलत PIN डालने पर SIM तब तक ब्लॉक रहती है जब तक उसका PUK दर्ज न किया जाए।"
+
 msgid "Basic"
 msgstr "मूल"
 
@@ -132,14 +153,104 @@ msgstr "तैयार।"
 msgid "Session history (click to reuse)"
 msgstr "सत्र इतिहास (फिर से उपयोग के लिए क्लिक करें)"
 
+msgid "Running in the background (at most %d s); the reply appears here when it is done…"
+msgstr "बैकग्राउंड में चल रहा है (अधिकतम %d से); पूरा होने पर जवाब यहाँ दिखेगा…"
+
+msgid "The modem gave no final answer in time"
+msgstr "मॉडेम ने समय पर अंतिम जवाब नहीं दिया"
+
+msgid "%d s in the background"
+msgstr "बैकग्राउंड में %d से"
+
 msgid "(no output)"
 msgstr "(कोई आउटपुट नहीं)"
+
+msgid "This command changes the modem's state."
+msgstr "यह कमांड मॉडेम की स्थिति बदलता है।"
+
+msgid "Not sent yet: waiting for confirmation"
+msgstr "अभी भेजा नहीं गया: पुष्टि की प्रतीक्षा है"
+
+msgid "Send this AT command?"
+msgstr "यह AT कमांड भेजें?"
+
+msgid "Send anyway"
+msgstr "फिर भी भेजें"
+
+msgid "Not sent"
+msgstr "नहीं भेजा गया"
 
 msgid "Request failed"
 msgstr "अनुरोध विफल"
 
 msgid "(empty)"
 msgstr "(खाली)"
+
+msgid "Failed: %s"
+msgstr "विफल: %s"
+
+msgid "Saved"
+msgstr "सहेजा गया"
+
+msgid "Management connection lost"
+msgstr "प्रबंधन कनेक्शन टूट गया"
+
+msgid "CPU profile unavailable"
+msgstr "CPU profile unavailable"
+
+msgid "Power saving"
+msgstr "Power saving"
+
+msgid "Balanced"
+msgstr "Balanced"
+
+msgid "Performance"
+msgstr "Performance"
+
+msgid "Cores capped at about 60 %% of their maximum (cooler, less power)."
+msgstr "Cores capped at about 60 %% of their maximum (cooler, less power)."
+
+msgid "Schedutil across the full hardware range (the stock behaviour)."
+msgstr "Schedutil across the full hardware range (the stock behaviour)."
+
+msgid "Every cluster pinned at its hardware maximum."
+msgstr "Every cluster pinned at its hardware maximum."
+
+msgid "CPU profile"
+msgstr "CPU profile"
+
+msgid "A profile sets the CPU governor and the per-cluster frequency limits. It stays within the hardware frequency table and never changes the voltage, so it cannot overclock this SoC. The kernel keeps throttling at its thermal limit in every profile."
+msgstr "A profile sets the CPU governor and the per-cluster frequency limits. It stays within the hardware frequency table and never changes the voltage, so it cannot overclock this SoC. The kernel keeps throttling at its thermal limit in every profile."
+
+msgid "Saved profile: %s"
+msgstr "Saved profile: %s"
+
+msgid "Thermal throttling is active right now: the frequencies below are below the profile ceiling."
+msgstr "Thermal throttling is active right now: the frequencies below are below the profile ceiling."
+
+msgid "Clusters"
+msgstr "Clusters"
+
+msgid "Cores"
+msgstr "Cores"
+
+msgid "Governor"
+msgstr "Governor"
+
+msgid "Now"
+msgstr "Now"
+
+msgid "Min"
+msgstr "Min"
+
+msgid "Max"
+msgstr "Max"
+
+msgid "Hardware max"
+msgstr "Hardware max"
+
+msgid "Frequencies in MHz."
+msgstr "Frequencies in MHz."
 
 msgid "USB role"
 msgstr "USB भूमिका"
@@ -417,6 +528,9 @@ msgstr "डिवाइस पुनः आरंभ करें"
 msgid "Switch to Android"
 msgstr "Android पर जाएँ"
 
+msgid "Lock Linux"
+msgstr "Linux लॉक करें"
+
 msgid "Neighbor cells"
 msgstr "पड़ोसी सेल"
 
@@ -434,9 +548,6 @@ msgstr "पृष्ठभूमि में शुरू किया गय�
 
 msgid "Done: %s"
 msgstr "पूर्ण: %s"
-
-msgid "Failed: %s"
-msgstr "विफल: %s"
 
 msgid "Disconnecting data…"
 msgstr "डेटा डिस्कनेक्ट किया जा रहा है…"
@@ -479,6 +590,24 @@ msgstr "बदलें और रीबूट करें"
 
 msgid "Preparing Android boot and rebooting…"
 msgstr "Android बूट तैयार किया जा रहा है और रीबूट हो रहा है…"
+
+msgid "Unlock Linux"
+msgstr "Linux अनलॉक करें"
+
+msgid "After five boots in a row that do not finish, the device falls back to Android again."
+msgstr "लगातार पाँच अधूरे बूट के बाद डिवाइस फिर से Android पर लौट आता है।"
+
+msgid "Unlock"
+msgstr "अनलॉक करें"
+
+msgid "The device will never switch to Android by itself, not even after failed boots: Android only from this page (Switch to Android) or with mu300-next-boot android."
+msgstr "डिवाइस अपने आप कभी Android पर नहीं जाएगा, असफल बूट के बाद भी नहीं: Android पर केवल इस पेज (Android पर जाएँ) से या mu300-next-boot android से।"
+
+msgid "A new kernel from an update still gets its first boots on trial, and locks again once one of them succeeds."
+msgstr "अपडेट से आया नया कर्नेल फिर भी पहले परीक्षण के रूप में बूट होता है, और उनमें से एक सफल होते ही फिर से लॉक हो जाता है।"
+
+msgid "If the system itself no longer starts, the device waits on USB (telnet) instead of going to Android."
+msgstr "यदि सिस्टम स्वयं शुरू नहीं होता, तो डिवाइस Android पर जाने के बजाय USB (telnet) पर प्रतीक्षा करता है।"
 
 msgid "Hide SIM identifiers"
 msgstr "SIM पहचानकर्ता छिपाएँ"
@@ -615,11 +744,8 @@ msgstr "ऑनलाइन"
 msgid "AT adapter unavailable"
 msgstr "AT एडेप्टर उपलब्ध नहीं"
 
-msgid "Saved"
-msgstr "सहेजा गया"
-
-msgid "Management connection lost"
-msgstr "प्रबंधन कनेक्शन टूट गया"
+msgid "Linux locked"
+msgstr "Linux लॉक है"
 
 msgid "Installing the language pack…"
 msgstr "भाषा पैक इंस्टॉल किया जा रहा है…"
@@ -795,11 +921,8 @@ msgstr "स्टार्टअप पर लागू करना अक्�
 msgid "Enable apply at startup"
 msgstr "स्टार्टअप पर लागू करना सक्षम करें"
 
-msgid "Reading the modem directly (a few seconds at most)…"
-msgstr "मॉडेम को सीधे पढ़ा जा रहा है (अधिकतम कुछ सेकंड)…"
-
-msgid "Refreshed"
-msgstr "रीफ़्रेश किया गया"
+msgid "Refresh started; waiting for the modem status…"
+msgstr "Refresh started; waiting for the modem status…"
 
 msgid "Refresh failed"
 msgstr "रीफ़्रेश विफल"
@@ -945,17 +1068,20 @@ msgstr "जगाएँ"
 msgid "Nobody connected means no Wi-Fi client and no computer on USB. The Wi-Fi key, a computer on USB or the charger wake the device."
 msgstr "कोई जुड़ा नहीं का मतलब है कोई Wi-Fi क्लाइंट नहीं और USB पर कोई कंप्यूटर नहीं। Wi-Fi कुंजी, USB पर कंप्यूटर या चार्जर डिवाइस को जगाते हैं।"
 
-msgid "Automatic: plugged in / on battery"
-msgstr "स्वचालित: बिजली से जुड़ा / बैटरी पर"
-
-msgid "Switch to Saver under %"
-msgstr "इससे कम पर बचत में जाएँ %"
+msgid "This charger has no user charge limit. Native charger temperature and safety policy remains active."
+msgstr "This charger has no user charge limit. Native charger temperature and safety policy remains active."
 
 msgid "Stop charging at"
 msgstr "चार्जिंग यहाँ रोकें"
 
 msgid "80 % keeps the battery healthier on a device that stays plugged in."
 msgstr "80 % हमेशा बिजली से जुड़े रहने वाले डिवाइस में बैटरी को स्वस्थ रखता है।"
+
+msgid "Automatic: plugged in / on battery"
+msgstr "स्वचालित: बिजली से जुड़ा / बैटरी पर"
+
+msgid "Switch to Saver under %"
+msgstr "इससे कम पर बचत में जाएँ %"
 
 msgid "Keep as is"
 msgstr "जैसा है वैसा रखें"
@@ -983,9 +1109,6 @@ msgstr "निष्क्रिय होने पर मोडेम"
 
 msgid "LEDs when idle"
 msgstr "निष्क्रिय होने पर LED"
-
-msgid "CPU"
-msgstr "CPU"
 
 msgid "Ignored lines in power.conf: %s"
 msgstr "power.conf में अनदेखी की गई पंक्तियाँ: %s"
@@ -1143,6 +1266,120 @@ msgstr "मैं: %s"
 msgid "Delete"
 msgstr "हटाएँ"
 
+msgid "The data usage could not be read"
+msgstr "डेटा उपयोग पढ़ा नहीं जा सका"
+
+msgid "Today"
+msgstr "आज"
+
+msgid "%s of %s"
+msgstr "%s / %s"
+
+msgid "This billing cycle"
+msgstr "यह बिलिंग चक्र"
+
+msgid "Days left in this cycle"
+msgstr "चक्र में शेष दिन"
+
+msgid "Received"
+msgstr "प्राप्त"
+
+msgid "Sent"
+msgstr "भेजा गया"
+
+msgid "Corrected by"
+msgstr "सुधार"
+
+msgid "Monthly cap"
+msgstr "मासिक सीमा"
+
+msgid "%s, warning at %d%%"
+msgstr "%s, %d%% पर चेतावनी"
+
+msgid "None"
+msgstr "कोई नहीं"
+
+msgid "The monthly cap is reached: mobile data was turned off. It comes back on when the next cycle starts."
+msgstr "मासिक सीमा पूरी हो गई: मोबाइल डेटा बंद कर दिया गया। अगला चक्र शुरू होने पर यह फिर चालू होगा।"
+
+msgid "The monthly cap is reached"
+msgstr "मासिक सीमा पूरी हो गई"
+
+msgid "%d%% of the monthly cap is used"
+msgstr "मासिक सीमा का %d%% उपयोग हुआ"
+
+msgid "%s waits for the clock: it has not been set over the network yet. It already counts towards this cycle and goes to its day once the clock is set."
+msgstr "%s घड़ी की प्रतीक्षा में है: घड़ी अभी नेटवर्क से सेट नहीं हुई है। यह पहले से इस चक्र में गिना जा रहा है और घड़ी सेट होने पर अपने दिन में जाएगा।"
+
+msgid "The interface %s is not there right now: nothing is counted until it comes back."
+msgstr "इंटरफ़ेस %s अभी मौजूद नहीं है: इसके लौटने तक कुछ नहीं गिना जाता।"
+
+msgid "Counted on %s, both ways, as the operator counts it (a VPN's overhead included)."
+msgstr "%s पर, दोनों दिशाओं में, ऑपरेटर की तरह गिना जाता है (VPN का अतिरिक्त भार शामिल)।"
+
+msgid "The count is kept in memory and written to the disk every 30 minutes and at shutdown: a power cut loses at most the last half hour."
+msgstr "गिनती मेमोरी में रखी जाती है और हर 30 मिनट तथा बंद होने पर डिस्क पर लिखी जाती है: बिजली कटने पर अधिकतम पिछला आधा घंटा खोता है।"
+
+msgid "Counting since %s."
+msgstr "%s से गिनती।"
+
+msgid "Per day"
+msgstr "प्रति दिन"
+
+msgid "Date"
+msgstr "तारीख"
+
+msgid "Total"
+msgstr "कुल"
+
+msgid "Per billing cycle"
+msgstr "प्रति बिलिंग चक्र"
+
+msgid "Billing cycle"
+msgstr "बिलिंग चक्र"
+
+msgid "Enter a size in GB, for example 50 or 2.5"
+msgstr "GB में आकार दर्ज करें, उदाहरण 50 या 2.5"
+
+msgid "Enter a percentage from 1 to 100"
+msgstr "1 से 100 तक प्रतिशत दर्ज करें"
+
+msgid "Turn mobile data off at the cap"
+msgstr "सीमा पर मोबाइल डेटा बंद करें"
+
+msgid "When this cycle reaches the cap, mobile data is turned off: no internet through the operator until the next cycle starts, the cap is raised or this is turned off again. Turning mobile data back on by hand keeps it on until the next reboot."
+msgstr "जब यह चक्र सीमा तक पहुँचेगा, मोबाइल डेटा बंद हो जाएगा: अगला चक्र शुरू होने, सीमा बढ़ाने या यह विकल्प फिर बंद करने तक ऑपरेटर से इंटरनेट नहीं मिलेगा। मोबाइल डेटा हाथ से फिर चालू करने पर वह अगले रीबूट तक चालू रहता है।"
+
+msgid "Set"
+msgstr "सेट करें"
+
+msgid "Clear the count"
+msgstr "गिनती साफ़ करें"
+
+msgid "Every day and billing cycle counted so far is forgotten. Counting goes on from now."
+msgstr "अब तक गिने गए सभी दिन और बिलिंग चक्र भुला दिए जाएँगे। गिनती अभी से जारी रहेगी।"
+
+msgid "Billing cycle and cap"
+msgstr "बिलिंग चक्र और सीमा"
+
+msgid "A billing cycle starts on day"
+msgstr "बिलिंग चक्र इस दिन शुरू होता है"
+
+msgid "31: on the last day of each month"
+msgstr "31: हर महीने के अंतिम दिन"
+
+msgid "Monthly cap (GB, 0: none)"
+msgstr "मासिक सीमा (GB, 0: कोई नहीं)"
+
+msgid "Warning at this percentage of the cap"
+msgstr "सीमा के इस प्रतिशत पर चेतावनी दें"
+
+msgid "Used so far in this cycle (GB)"
+msgstr "इस चक्र में अब तक उपयोग (GB)"
+
+msgid "What the operator shows for this cycle (for example when counting started in the middle of it); the count is corrected to it."
+msgstr "ऑपरेटर इस चक्र के लिए जो दिखाता है (उदाहरण के लिए जब गिनती चक्र के बीच में शुरू हुई); गिनती उसी के अनुसार सुधारी जाती है।"
+
 msgid "Current setting"
 msgstr "वर्तमान सेटिंग"
 
@@ -1169,9 +1406,6 @@ msgstr "इस कर्नेल पर TTL सेट रहने तक फ�
 
 msgid "Set %d"
 msgstr "%d सेट करें"
-
-msgid "Set"
-msgstr "सेट करें"
 
 msgid "Enter a number from 1 to 255"
 msgstr "1 से 255 तक की संख्या दर्ज करें"
@@ -1203,6 +1437,9 @@ msgstr "रेडियो व्यस्त है: डायल या वॉ
 msgid "The action gave no valid reply"
 msgstr "कार्रवाई से कोई मान्य उत्तर नहीं मिला"
 
+msgid "The confirm parameter must be 0 or 1"
+msgstr "confirm पैरामीटर 0 या 1 होना चाहिए"
+
 msgid "An AT command is one line of printable ASCII, at most 512 characters"
 msgstr "AT कमांड प्रिंट करने योग्य ASCII की एक पंक्ति होती है, अधिकतम 512 अक्षर"
 
@@ -1217,6 +1454,12 @@ msgstr "अस्वीकृत: यह कमांड रीबूट हो�
 
 msgid "Applying network locks: the modem is restarting (about half a minute), try again shortly"
 msgstr "नेटवर्क लॉक लागू हो रहे हैं: मॉडेम पुनः आरंभ हो रहा है (लगभग आधा मिनट), थोड़ी देर में फिर से प्रयास करें"
+
+msgid "A long AT command is still running in the background; try again when it has finished"
+msgstr "एक लंबा AT कमांड अभी भी बैकग्राउंड में चल रहा है; उसके पूरा होने पर फिर कोशिश करें"
+
+msgid "This command needs confirmation"
+msgstr "इस कमांड के लिए पुष्टि ज़रूरी है"
 
 msgid "The AT channel is busy; the command was not sent, try again"
 msgstr "AT चैनल व्यस्त है; कमांड नहीं भेजा गया, फिर से प्रयास करें"
@@ -1305,6 +1548,21 @@ msgstr "अमान्य पावर मान"
 msgid "Invalid power request"
 msgstr "अमान्य पावर अनुरोध"
 
+msgid "The data usage adapter gave no valid reply"
+msgstr "डेटा उपयोग एडेप्टर ने मान्य उत्तर नहीं दिया"
+
+msgid "Unknown data usage setting"
+msgstr "अज्ञात डेटा उपयोग सेटिंग"
+
+msgid "Invalid value for this setting"
+msgstr "इस सेटिंग के लिए अमान्य मान"
+
+msgid "The CPU adapter gave no valid reply"
+msgstr "The CPU adapter gave no valid reply"
+
+msgid "Invalid CPU profile"
+msgstr "Invalid CPU profile"
+
 msgid "The languages adapter gave no valid reply"
 msgstr "भाषा एडेप्टर से कोई मान्य उत्तर नहीं मिला"
 
@@ -1352,6 +1610,15 @@ msgstr "mu300-next-boot विफल"
 
 msgid "AT backend did not answer (radio off, modem restarting, or adapter unavailable)"
 msgstr "AT बैकएंड ने उत्तर नहीं दिया (रेडियो बंद, मॉडेम पुनः आरंभ हो रहा है, या एडेप्टर उपलब्ध नहीं)"
+
+msgid "The CPU profile could not be read"
+msgstr "The CPU profile could not be read"
+
+msgid "The CPU profile could not be set"
+msgstr "The CPU profile could not be set"
+
+msgid "Unknown CPU operation"
+msgstr "Unknown CPU operation"
 
 msgid "USB role adapter is not executable"
 msgstr "USB भूमिका एडेप्टर निष्पादन योग्य नहीं है"
@@ -1458,6 +1725,15 @@ msgstr "लॉक करने के लिए कोई सर्विंग 
 msgid "usage: power get|set KEY VALUE|wake|idle"
 msgstr "usage: power get|set KEY VALUE|wake|idle"
 
+msgid "Data usage is not available on this system"
+msgstr "इस सिस्टम पर डेटा उपयोग उपलब्ध नहीं है"
+
+msgid "The setting could not be saved"
+msgstr "सेटिंग सहेजी नहीं जा सकी"
+
+msgid "Unknown data usage operation"
+msgstr "अज्ञात डेटा उपयोग ऑपरेशन"
+
 msgid "The TTL setting could not be read"
 msgstr "TTL सेटिंग पढ़ी नहीं जा सकी"
 
@@ -1466,30 +1742,3 @@ msgstr "TTL सेट नहीं किया जा सका"
 
 msgid "Unknown TTL operation"
 msgstr "अज्ञात TTL कार्रवाई"
-
-msgid "Lock Linux"
-msgstr "Linux लॉक करें"
-
-msgid "Unlock Linux"
-msgstr "Linux अनलॉक करें"
-
-msgid "After five boots in a row that do not finish, the device falls back to Android again."
-msgstr "लगातार पाँच अधूरे बूट के बाद डिवाइस फिर से Android पर लौट आता है।"
-
-msgid "Unlock"
-msgstr "अनलॉक करें"
-
-msgid "The device will never switch to Android by itself, not even after failed boots: Android only from this page (Switch to Android) or with mu300-next-boot android."
-msgstr "डिवाइस अपने आप कभी Android पर नहीं जाएगा, असफल बूट के बाद भी नहीं: Android पर केवल इस पेज (Android पर जाएँ) से या mu300-next-boot android से।"
-
-msgid "A new kernel from an update still gets its first boots on trial, and locks again once one of them succeeds."
-msgstr "अपडेट से आया नया कर्नेल फिर भी पहले परीक्षण के रूप में बूट होता है, और उनमें से एक सफल होते ही फिर से लॉक हो जाता है।"
-
-msgid "If the system itself no longer starts, the device waits on USB (telnet) instead of going to Android."
-msgstr "यदि सिस्टम स्वयं शुरू नहीं होता, तो डिवाइस Android पर जाने के बजाय USB (telnet) पर प्रतीक्षा करता है।"
-
-msgid "Linux locked"
-msgstr "Linux लॉक है"
-
-msgid "This charger has no user charge limit. Native charger temperature and safety policy remains active."
-msgstr "This charger has no user charge limit. Native charger temperature and safety policy remains active."
