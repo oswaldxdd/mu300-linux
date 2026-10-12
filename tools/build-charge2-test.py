@@ -43,6 +43,21 @@ MAIN_SERVICES = (
     "mu300-cpu", "mu300-traffic", "mu300-power", "mu300-fcc-record", "mu300-user-packages",
 )
 LUCI_SERVICES = ("unisoc-modem-ui", "mu300-smsd", "mu300-atd-dash", "mu300-ndp")
+DOC_RELEASE_ID = "@@MU300_CHARGE2_RELEASE_ID@@"
+DOC_KERNEL_RELEASE = "@@MU300_CHARGE2_KERNEL_RELEASE@@"
+
+
+def package_doc(source: Path, name: str) -> str:
+    """Render a frozen-source Markdown template with this package's identifiers."""
+    path = source / "docs" / name
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise RuntimeError(f"package documentation template is missing: {path}") from exc
+    text = text.replace(DOC_RELEASE_ID, RELEASE_ID).replace(DOC_KERNEL_RELEASE, KREL)
+    if "@@MU300_CHARGE2_" in text:
+        raise RuntimeError(f"unresolved package documentation placeholder in {path}")
+    return text
 
 
 def sha256(path: Path) -> str:
@@ -677,21 +692,10 @@ def main() -> None:
             json.dumps(inputs, indent=2, sort_keys=True) + "\n", encoding="utf-8"
         )
         (package / "BUILD-CHARGE2-TEST.md").write_text(
-            f"# {RELEASE_ID}\n\n"
-            "此包是基于已发布 `v2026.10.15-charge2` 的独立测试候选包。它包含新编译的 "
-            f"`{KREL}` 内核及匹配模块，并在 OpenWrt 根文件系统中装入 CPU、traffic、短信、软件包恢复、"
-            "Wi-Fi/DFS、IPv6 与更新器运行时。\n\n"
-            "这是完整测试固件包，不代表稳定发布。构建和静态包检查已完成；没有刷写设备，也没有声称设备启动、"
-            "无线、充电或长期稳定性测试通过。`release/BUILD-MANIFEST.json` 和 `provenance/` 记录源提交与输入哈希。\n\n"
-            "要复现装配，请在 Linux/WSL 安装 Python 3.12+、GNU tar/gzip/patch 与 qemu-user，使用包中的 `source/`、"
-            "`provenance/inputs/official-openwrt-rootfs.tar.gz`、`provenance/inputs/packages.adb`、APK 文件，"
-            "`provenance/kernel-build/` 以及 `release/mu300-kernel-7.2.tar.gz` 和 `release/mu300-kernel.tar.gz`。"
-            "请先阅读 `source/BUILD-CHARGE2.md`。\n",
-            encoding="utf-8"
+            package_doc(source, "BUILD-CHARGE2-TEST.md.in"), encoding="utf-8"
         )
         (package / "README.md").write_text(
-            f"# {RELEASE_ID}\n\n测试候选完整固件包。请先阅读 `BUILD-CHARGE2-TEST.md` 和 `release/BUILD-MANIFEST.json`。\n",
-            encoding="utf-8"
+            package_doc(source, "README-CHARGE2-TEST.md.in"), encoding="utf-8"
         )
         wrapper = package / "install-u30air-host.ps1"
         wrapper.write_text(host_wrapper(), encoding="utf-8-sig", newline="\r\n")

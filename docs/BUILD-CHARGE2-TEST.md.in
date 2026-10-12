@@ -1,0 +1,7 @@
+# @@MU300_CHARGE2_RELEASE_ID@@
+
+此包是基于已发布 `v2026.10.15-charge2` 的独立测试候选包。它包含新编译的 `@@MU300_CHARGE2_KERNEL_RELEASE@@` 内核及匹配模块，并在 OpenWrt 根文件系统中装入 CPU、traffic、短信、软件包恢复、Wi-Fi/DFS、IPv6 与更新器运行时。
+
+这是完整测试固件包，不代表稳定发布。构建和静态包检查已完成；没有刷写设备，也没有声称设备启动、无线、充电或长期稳定性测试通过。`release/BUILD-MANIFEST.json` 和 `provenance/` 记录源提交与输入哈希。
+
+要复现装配，请在 Linux/WSL 安装 Python 3.12+、GNU tar/gzip/patch 与 qemu-user，使用包中的 `source/`、`provenance/inputs/official-openwrt-rootfs.tar.gz`、`provenance/inputs/packages.adb`、APK 文件、`provenance/kernel-build/` 以及 `release/mu300-kernel-7.2.tar.gz` 和 `release/mu300-kernel.tar.gz`。请先阅读 `source/BUILD-CHARGE2.md`。
