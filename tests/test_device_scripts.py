@@ -427,7 +427,12 @@ at() {
         answers $SMMSWAP (OK by default; "none" is a timeout, "busy" the client lock held)."""
         if not shutil.which('bash'):
             self.skipTest('no bash')
+        test_clock = bool(env.pop('MU300_TEST_CLOCK', False))
         text = (BIN / 'mobile-data').read_text()
+        if test_clock:
+            # Bash SECONDS is a wall-clock integer. Tests that assert exact polling durations use a virtual clock so
+            # scheduler phase/load cannot make two two-second waits report three elapsed seconds.
+            text = text.replace('SECONDS', 'MU300_TEST_CLOCK')
         text = text.replace('/run/', f'{self.tmp}/run/').replace('/opt/mu300/bin/mu300-led', 'mu300-led')
         text = text.replace('/opt/mu300/bin/mu300-at ', 'mu300-at ')
         # K47: the delegate loader is a stub that logs "- sipa-dele-start wait=<MU300_DELE_WAIT>" in the AT order and
@@ -458,7 +463,17 @@ at() {
                   'case ${SMMSWAP:-OK} in none) echo "mu300-at: no answer from the daemon" >&2; exit 1 ;;\n'
                   '    busy) echo "mu300-at: busy" >&2; exit 1 ;; esac\n'
                   'echo "${SMMSWAP:-OK}"')
-        r = self.sh(['bash'], f'MU300_LIB=1; . "{lib}"\n{modem or self.MODEM}\nSECONDS=0\n{code}', **env)
+        modem_source = modem or self.MODEM
+        if test_clock:
+            modem_source = modem_source.replace('SECONDS', 'MU300_TEST_CLOCK')
+            clock_setup = ('sleep() { case ${1:-} in 0) return 0 ;; *[!0-9]*|"")'
+                           ' echo "unexpected sleep duration: ${1:-}" >&2; return 97 ;;'
+                           ' *) printf "%s\\n" "$1" >> "$STUBLOG/sleeps";'
+                           ' MU300_TEST_CLOCK=$((MU300_TEST_CLOCK + $1)); return 0 ;; esac; }\n'
+                           'MU300_TEST_CLOCK=0')
+        else:
+            clock_setup = 'SECONDS=0'
+        r = self.sh(['bash'], f'MU300_LIB=1; . "{lib}"\n{modem_source}\n{clock_setup}\n{code}', **env)
         sent = (self.tmp / 'at').read_text().splitlines() if (self.tmp / 'at').exists() else []
         return r, sent
 
@@ -759,12 +774,15 @@ at() {
 
     def test_radio_comes_up_late_without_a_power_cycle(self):
         """After AT+SFUN=4 the radio says 0 twice and then 1: wait for it, no SFUN=2 off/on cycle (K57)."""
-        r, sent, cmds = self.radio('rc=0; radio_on || rc=$?; echo "rc=$rc t=$SECONDS"', RF_LAG=2)
+        (self.tmp / 'sleeps').unlink(missing_ok=True)
+        r, sent, cmds = self.radio('rc=0; radio_on || rc=$?; echo "rc=$rc t=$MU300_TEST_CLOCK"',
+                                   RF_LAG=2, MU300_TEST_CLOCK=1)
         self.assertRegex(r.stdout, r'rc=0 t=[4-6]\b', r.stderr)
         self.assertEqual(cmds.count('AT+SFUN=4'), 1, cmds)
         self.assertNotIn('AT+SFUN=2', cmds)
         self.assertEqual(cmds.count('AT+CFUN?'), 4, cmds)     # before, then 0, 0, 1
         self.assertRegex(self.radio_log(), r'radio on [4-6] s after AT\+SFUN=4')
+        self.assertEqual((self.tmp / 'sleeps').read_text().splitlines(), ['2', '2'])
         # already on (and the handshake done this boot): one question, nothing switched
         r, sent, cmds = self.radio('radio_on; echo ok', CFUN=1)
         self.assertEqual(cmds, ['AT+CFUN?'])
