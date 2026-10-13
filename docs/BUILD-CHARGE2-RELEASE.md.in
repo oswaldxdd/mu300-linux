@@ -1,0 +1,29 @@
+# Build `@@MU300_CHARGE2_RELEASE_ID@@`
+
+This package is assembled from the exact committed source recorded in `release/BUILD-MANIFEST.json`. It uses the audited 7.2.9 kernel bundle built for the earlier test source commit. The formal builder reuses that bundle only after checking every recorded `upstream/` source hash, compiler/config evidence and build-log hash against the final source snapshot. It never labels a reused bundle as freshly built.
+
+## Inputs
+
+The formal build requires the pinned official OpenWrt rootfs, rollback kernel bundle, signed OpenWrt `packages.adb`, and `ucode-mod-socket` APK, together with the audited `mu300-kernel-7.2.tar.gz`, its original build provenance and evidence. The expected SHA-256 values are fixed in `tools/build-charge2-test.py`; the kernel bundle must match the exact audited hash. The build also generates `mu300-native-kmod-compat-7.2.9-r1.apk` from the clean committed source snapshot.
+
+On WSL/Linux with Python 3.12+, GNU `tar`/`gzip`/`patch`, `qemu-aarch64-static`, and the pinned inputs available locally, run from a clean committed checkout:
+
+```sh
+python3 tools/build-charge2-release.py \
+  --repo . \
+  --source-commit <final-40-character-commit> \
+  --official-rootfs /path/to/mu300-openwrt-luci-rootfs.tar.gz \
+  --rollback-kernel /path/to/mu300-kernel.tar.gz \
+  --kernel /path/to/audited-mu300-kernel-7.2.tar.gz \
+  --apk-index /path/to/packages.adb \
+  --apk /path/to/ucode-mod-socket-2026.01.16~85922056-r2.apk \
+  --kernel-provenance /path/to/original-kernel-evidence/BUILD-PROVENANCE.json \
+  --kernel-evidence /path/to/original-kernel-evidence \
+  --out /path/to/new/v2026.10.15-charge2-r2
+```
+
+The rootfs build includes the native compatibility APK with a per-command untrusted-package allowance and scripts disabled; APK's installed database and solver are checked for its four exact versioned kmod capabilities. The package contains no `.ko` files, and its fail-closed pre-install/pre-upgrade guard remains active for later device-side package operations. The builder also requires the FCC `S20` and traffic `K10` links and records the image version as the release ID.
+
+The output directory contains the clean source archive, provenance, install wrapper, asset checksums and complete offline firmware package. The sibling `.zip` is the downloadable artifact; run the supplied release-part reassembly script after downloading split GitHub assets. Do not mark the exact r2 package hardware-validated until it has been installed and checked on a U30 Air.
+
+`tools/build-charge2-test.py` remains a separate test-candidate assembler. `build-full-release.py` is retained only as a historical fixed-input wrapper and intentionally refuses the current charge2 source tree; it cannot combine current source with the earlier pinned kernel/assets.

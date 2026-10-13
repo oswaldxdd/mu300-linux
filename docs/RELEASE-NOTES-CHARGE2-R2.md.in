@@ -1,0 +1,20 @@
+# U30 Air charge2 `@@MU300_CHARGE2_RELEASE_ID@@`
+
+This release packages the reviewed charge2 source for the ZTE U30 Air with Linux `@@MU300_CHARGE2_KERNEL_RELEASE@@` and OpenWrt 25.12.5.
+
+## Changes
+
+- Adds the CPU and traffic LuCI/runtime integration, SMS and AT improvements, and saved user-package recovery to the charge2 image.
+- Includes the reviewed Wi-Fi/WCN, DFS, IPv6 and updater-check source changes. Online kernel, boot and whole-system apply operations remain blocked; use the matching offline firmware package for upgrades.
+- Adds the release-local `mu300-native-kmod-compat` provider. It records the kernel capabilities that are built in or supplied by the matching 7.2.9 kernel and does not ship kernel modules. Its device-side guard checks the exact kernel release, configuration, module hashes and built-in list before package changes.
+- Creates the traffic service shutdown link so its final accounting hook runs before shutdown.
+
+## Build and hardware status
+
+The candidate kernel bundle is reused from the audited `charge2-test1-20261012` build. The release builder compares every recorded upstream kernel input and build log with this release's committed source and records the original build commit. The OpenWrt rootfs and local native-kmod package are assembled for this release ID and carry SHA-256 manifests.
+
+The exact r2 package has not been installed or booted as a whole. Earlier test-candidate device checks do not substitute for validation of this full package. No claim is made that the r2 package has passed a complete hardware test.
+
+## Install
+
+Download all split assets, reassemble the complete ZIP with `Join-Charge2-Firmware.ps1`, and compare the result with the published SHA-256 file. Extract the ZIP and run `install-u30air-host.ps1`; `-VerifyOnly` checks package assets without accessing the device. The package targets the rooted ZTE U30 Air and keeps Android as the default boot system.

@@ -1,0 +1,38 @@
+package=mu300-native-kmod-compat
+package_version=7.2.9-r1
+release_id=v2026.10.15-charge2-r2
+source_commit=@@SOURCE_COMMIT@@
+apk_architecture=aarch64_generic
+uname_architecture=aarch64
+kernel_release=7.2.9-u30air-charge2
+kernel_archive_sha256=fd87b29a0720331447d9b9fb2cad044cb8b190cc5b3c3c5670a513af039aa71e
+effective_config_sha256=7f87982af61c7a9a5577babac21b3055042fcba513c89dae95138a56afe6795e
+modules_builtin_sha256=9f37862d34d1f5cd1596fc9d718e257dd3f2174b31f81cb8447096cd7f940d74
+provides=kmod-dummy=7.2.9-r1
+provides=kmod-inet-diag=7.2.9-r1
+provides=kmod-nft-socket=7.2.9-r1
+provides=kmod-nft-tproxy=7.2.9-r1
+module=dummy.ko|sha256=13dceaac167531650262f8d782b4e79df9a93cd6c8efd45dfc7bcbba0690ccce|vermagic=7.2.9-u30air-charge2 SMP preempt mod_unload aarch64
+module=udp_diag.ko|sha256=81b6171e6c8b3ca081b08f83a9df50d87ac7a672b03667ee5bb93445ff414aa4|vermagic=7.2.9-u30air-charge2 SMP preempt mod_unload aarch64
+module=raw_diag.ko|sha256=259fb82e25c352cfff6dadeabd80f3d61b74d08fa5d977a9efd903b594a775c1|vermagic=7.2.9-u30air-charge2 SMP preempt mod_unload aarch64
+config=CONFIG_DUMMY=m
+config=CONFIG_INET_DIAG=y
+config=CONFIG_INET_TCP_DIAG=y
+config=CONFIG_INET_UDP_DIAG=m
+config=CONFIG_INET_RAW_DIAG=m
+config=CONFIG_NFT_SOCKET=y
+config=CONFIG_NFT_TPROXY=y
+config=CONFIG_NF_SOCKET_IPV4=y
+config=CONFIG_NF_SOCKET_IPV6=y
+config=CONFIG_NF_TPROXY_IPV4=y
+config=CONFIG_NF_TPROXY_IPV6=y
+builtin=kernel/net/netfilter/nft_socket.ko
+builtin=kernel/net/netfilter/nft_tproxy.ko
+builtin=kernel/net/ipv4/inet_diag.ko
+builtin=kernel/net/ipv4/tcp_diag.ko
+builtin=kernel/net/ipv4/netfilter/nf_socket_ipv4.ko
+builtin=kernel/net/ipv4/netfilter/nf_tproxy_ipv4.ko
+builtin=kernel/net/ipv6/netfilter/nf_socket_ipv6.ko
+builtin=kernel/net/ipv6/netfilter/nf_tproxy_ipv6.ko
+kernel_modules_in_package=no
+signature=unsigned-project-local-firmware-package

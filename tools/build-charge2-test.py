@@ -60,6 +60,58 @@ def package_doc(source: Path, name: str) -> str:
     return text
 
 
+def init_priority(init: Path, service: str, variable: str, *, required: bool) -> str | None:
+    """Read one two-digit rc.common priority, allowing an optional trailing comment."""
+    text = init.read_text(encoding="utf-8", errors="replace")
+    assignments = re.findall(rf"(?m)^{variable}=.*$", text)
+    if not assignments and not required:
+        return None
+    if len(assignments) != 1:
+        raise RuntimeError(f"init service must have one {variable}= value: {service}")
+    match = re.fullmatch(rf"{variable}=([0-9]{{2}})(?:\s+#.*)?\s*", assignments[0])
+    if not match:
+        raise RuntimeError(f"init service must have a two-digit {variable}= value: {service}")
+    return match.group(1)
+
+
+def ensure_init_link(rcdir: Path, prefix: str, priority: str, service: str) -> Path:
+    """Create or retain one rc.d symlink; replace stale symlinks but refuse regular files."""
+    link = rcdir / f"{prefix}{priority}{service}"
+    target = Path("../init.d") / service
+    if link.is_symlink():
+        if os.readlink(link) == target.as_posix():
+            return link
+        link.unlink()
+    elif link.exists():
+        raise RuntimeError(f"refusing to replace non-symlink init link: {link}")
+    link.symlink_to(target)
+    return link
+
+
+def enable_init_services(root: Path) -> None:
+    """Enable boot links and optional shutdown links from rc.common priorities."""
+    rcdir = root / "etc/rc.d"
+    rcdir.mkdir(parents=True, exist_ok=True)
+    for service in MAIN_SERVICES + LUCI_SERVICES:
+        init = root / "etc/init.d" / service
+        if not init.is_file():
+            raise RuntimeError(f"required OpenWrt init service missing: {init}")
+        if service in {"mu300-cpu", "mu300-traffic", "mu300-user-packages", "unisoc-modem-ui",
+                       "mu300-smsd", "mu300-atd-dash", "mu300-ndp"}:
+            init.chmod(0o755)
+        if not os.access(init, os.X_OK):
+            raise RuntimeError(f"OpenWrt init service is not executable: {init}")
+        start = init_priority(init, service, "START", required=True)
+        ensure_init_link(rcdir, "S", start, service)
+        stop = init_priority(init, service, "STOP", required=False)
+        if stop is not None:
+            ensure_init_link(rcdir, "K", stop, service)
+
+    fcc_link = rcdir / "S20mu300-fcc-record"
+    if not fcc_link.is_symlink() or os.readlink(fcc_link) != "../init.d/mu300-fcc-record":
+        raise RuntimeError("the U30 Air FCC service is not enabled at its START=20 boot link")
+
+
 def sha256(path: Path) -> str:
     h = hashlib.sha256()
     with path.open("rb") as stream:
@@ -324,6 +376,57 @@ def install_socket_apk(root: Path, apk_index: Path, apk_file: Path, work: Path) 
     shutil.rmtree(repo, ignore_errors=True)
 
 
+NATIVE_KMOD_PROVIDER = "mu300-native-kmod-compat"
+NATIVE_KMOD_PROVIDER_VERSION = "7.2.9-r1"
+NATIVE_KMOD_PROVIDES = (
+    "kmod-dummy=7.2.9-r1",
+    "kmod-inet-diag=7.2.9-r1",
+    "kmod-nft-socket=7.2.9-r1",
+    "kmod-nft-tproxy=7.2.9-r1",
+)
+
+
+def install_native_provider_apk(root: Path, apk_file: Path) -> None:
+    """Register the firmware-local, unsigned provider without executing package scripts."""
+    env = os.environ.copy()
+    env.update({"IPKG_NO_SCRIPT": "1", "LC_ALL": "C"})
+    # apk-tools 3.0.5 accepts `no` for its BOOL option; `false` is rejected.
+    apk_call(root, ["--allow-untrusted", "--scripts=no", "add", str(apk_file)], env)
+
+    installed_db = root / "lib/apk/db/installed"
+    records = installed_db.read_text(encoding="utf-8", errors="replace").split("\n\n")
+    record = next((item for item in records
+                   if f"\nP:{NATIVE_KMOD_PROVIDER}\n" in f"\n{item}\n"), None)
+    if record is None:
+        raise RuntimeError("native kmod provider is absent from the APK installed database")
+    lines = set(record.splitlines())
+    if f"V:{NATIVE_KMOD_PROVIDER_VERSION}" not in lines or "A:aarch64_generic" not in lines:
+        raise RuntimeError("native kmod provider version or architecture differs from the frozen package")
+    # APK stores package names as uppercase P: and versioned virtual provides
+    # as lowercase p: records. A single p: record may contain several tokens.
+    provides = {
+        token
+        for line in lines
+        if line.startswith("p:")
+        for token in line[2:].split()
+    }
+    missing = sorted(set(NATIVE_KMOD_PROVIDES) - provides)
+    if missing:
+        raise RuntimeError(f"native kmod provider is missing installed provides records: {missing}")
+
+    # Ask APK's own solver to resolve every exact versioned capability from this rootfs DB.
+    for capability in NATIVE_KMOD_PROVIDES:
+        apk_call(root, ["--no-network", "--simulate", "add", capability], env)
+
+    installed = subprocess.check_output(
+        [shutil.which("qemu-aarch64-static"), "-L", str(root), str(root / "usr/bin/apk"),
+         "--root", str(root), "info", "-e", NATIVE_KMOD_PROVIDER],
+        env=env, text=True,
+    ).strip()
+    if installed != NATIVE_KMOD_PROVIDER:
+        raise RuntimeError(f"APK did not report the native provider installed: {installed!r}")
+
+
 def patch_if_needed(root: Path, source: Path, rel: str, marker: str) -> None:
     target = root / rel
     if target.is_file() and marker in target.read_text(encoding="utf-8", errors="replace"):
@@ -335,7 +438,8 @@ def patch_if_needed(root: Path, source: Path, rel: str, marker: str) -> None:
 
 
 def make_rootfs(source: Path, rootfs_base: Path, kernel: Path, modules: list[Path],
-                apk_index: Path, apk_file: Path, stage: Path) -> tuple[Path, list[str]]:
+                apk_index: Path, apk_file: Path, stage: Path,
+                native_provider_apk: Path | None = None) -> tuple[Path, list[str]]:
     root = stage / "rootfs"
     root.mkdir()
     run(["tar", "-xzf", str(rootfs_base), "-C", str(root)])
@@ -381,6 +485,8 @@ def make_rootfs(source: Path, rootfs_base: Path, kernel: Path, modules: list[Pat
             raise RuntimeError(f"pinned OpenWrt rootfs is missing /lib/firmware/{firmware}")
 
     install_socket_apk(root, apk_index, apk_file, stage)
+    if native_provider_apk is not None:
+        install_native_provider_apk(root, native_provider_apk)
     (root / "etc/mu300").mkdir(parents=True, exist_ok=True)
     (root / "etc/mu300/image-version").write_text(RELEASE_ID + "\n", encoding="ascii")
 
@@ -410,30 +516,8 @@ def make_rootfs(source: Path, rootfs_base: Path, kernel: Path, modules: list[Pat
         path.write_text("#!/bin/sh\n# mu300-buttons owns the keys.\nexit 0\n", encoding="ascii")
         path.chmod(0o755)
 
-    # Init enablement mirrors the device-specific image and includes FCC plus the new CPU/traffic/package services.
-    rcdir = root / "etc/rc.d"
-    rcdir.mkdir(parents=True, exist_ok=True)
-    for service in MAIN_SERVICES + LUCI_SERVICES:
-        init = root / "etc/init.d" / service
-        if not init.is_file():
-            raise RuntimeError(f"required OpenWrt init service missing: {init}")
-        if service in {"mu300-cpu", "mu300-traffic", "mu300-user-packages", "unisoc-modem-ui",
-                       "mu300-smsd", "mu300-atd-dash", "mu300-ndp"}:
-            init.chmod(0o755)
-        if not os.access(init, os.X_OK):
-            raise RuntimeError(f"OpenWrt init service is not executable: {init}")
-        matches = re.findall(
-            r"(?m)^START=([0-9]{2})(?:\s+#.*)?\s*$",
-            init.read_text(encoding="utf-8", errors="replace"),
-        )
-        if len(matches) != 1:
-            raise RuntimeError(f"init service must have one two-digit START= value: {service}")
-        link = rcdir / f"S{matches[0]}{service}"
-        link.unlink(missing_ok=True)
-        link.symlink_to(Path("../init.d") / service)
-    fcc_link = rcdir / "S20mu300-fcc-record"
-    if not fcc_link.is_symlink() or os.readlink(fcc_link) != "../init.d/mu300-fcc-record":
-        raise RuntimeError("the U30 Air FCC service is not enabled at its START=20 boot link")
+    # Init enablement mirrors device-specific boot order and applies declared STOP values on shutdown.
+    enable_init_services(root)
 
     # Runtime scripts whose Git executable bit is required by procd/LuCI.
     executables = (

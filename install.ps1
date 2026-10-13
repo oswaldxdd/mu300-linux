@@ -360,19 +360,33 @@ if ($U30AirHostPackage) {
     if ($ReleaseUrl) { Die 'the U30 Air offline package does not accept a network release URL' }
     if (-not $ReleaseDirectory) { Die 'the U30 Air offline package requires -ReleaseDirectory' }
     $ReleaseDirectory = [IO.Path]::GetFullPath($ReleaseDirectory)
+    $manifestPath = Join-Path $ReleaseDirectory 'BUILD-MANIFEST.json'
+    if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) { Die 'local BUILD-MANIFEST.json is missing' }
+    try { $offlineManifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json }
+    catch { Die 'local BUILD-MANIFEST.json is invalid JSON' }
+    $manifestRelease = [string]$offlineManifest.release_id
+    if ($offlineManifest.test_candidate -isnot [System.Boolean]) { Die 'local BUILD-MANIFEST.json has no boolean test_candidate field' }
+    $manifestChannel = [string]$offlineManifest.release_channel
+    if ($offlineManifest.test_candidate) {
+        if ($manifestRelease -notmatch '^charge2-test1-\d{8}$' -or ($manifestChannel -and $manifestChannel -ne 'test')) {
+            Die 'local manifest does not identify a recognized charge2 test package'
+        }
+    } elseif ($manifestRelease -notmatch '^v\d{4}\.\d{2}\.\d{2}-charge2-r\d+$' -or $manifestChannel -ne 'stable') {
+        Die 'local manifest does not identify a recognized formal charge2 release'
+    }
     $sumPath = Join-Path $ReleaseDirectory 'SHA256SUMS'
     if (-not (Test-Path -LiteralPath $sumPath -PathType Leaf)) { Die 'local SHA256SUMS is missing' }
     $localSums = @{}
     foreach ($line in Get-Content -LiteralPath $sumPath) {
         if ($line -match '^([0-9a-fA-F]{64})\s+\*?([^\s]+)$') { $localSums[$Matches[2]] = $Matches[1].ToLowerInvariant() }
     }
-    foreach ($asset in @('mu300-kernel.tar.gz','mu300-kernel-7.2.tar.gz','mu300-openwrt-luci-rootfs.tar.gz')) {
+    foreach ($asset in @('mu300-kernel.tar.gz','mu300-kernel-7.2.tar.gz','mu300-openwrt-luci-rootfs.tar.gz','BUILD-MANIFEST.json')) {
         $assetPath = Join-Path $ReleaseDirectory $asset
         if (-not $localSums.ContainsKey($asset) -or -not (Test-Path -LiteralPath $assetPath -PathType Leaf)) { Die "required offline asset is missing: $asset" }
         if ((Get-FileHash -LiteralPath $assetPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne $localSums[$asset]) { Die "local asset checksum mismatch: $asset" }
     }
-    if ($VerifyOnly) { Write-Host 'Offline assets verified.'; exit 0 }
-    $Release = 'v2026.10.15'
+    $Release = $manifestRelease
+    if ($VerifyOnly) { Write-Host "Offline assets verified for $Release."; exit 0 }
 }
 
 Say (T 'Checking host tools and device')

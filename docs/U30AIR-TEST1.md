@@ -3,6 +3,10 @@
 This is a test build based on the stable charge2 source tree. It ports selected fixes and features from the pinned
 upstream snapshot; it is not an upstream merge and is not a replacement for the published release.
 
+> Historical release boundary: `charge2-test1-20261012` is frozen at source commit `b6e323125f8231c605dbe2c90bceb4407dcb18a7`.
+> Its updater release lookup retains the generic upstream repository behavior. Repository routing to `oswaldxdd/mu300-linux`
+> applies only to the current source branch and follow-up `r2`; it was not part of the frozen test1 package.
+
 ## Source and scope
 
 - Charge2 source baseline: `75b1b2d`.
@@ -26,9 +30,10 @@ it does not replace the tree with upstream `main`.
   retaining channels appropriate to the configured country.
 - Cellular IPv6 is re-enabled when the bearer is brought up in extend-prefix mode. In relay mode the RA helper marks
   the old delegated prefix deprecated when the carrier changes it. Existing interface and DNS settings are retained.
-- `mu300-update check` remains read-only. Generic online `apply`, `boot`, and kernel-changing operations are rejected
-  because upstream release assets are not charge2-compatible. Use a matching offline charge2 package; don't point
-  this test image at generic upstream assets.
+- In the frozen test1 package, `mu300-update check` remains read-only and retains the generic upstream release lookup.
+  The U30 Air plus `uname -r` = `7.2.9-u30air-charge2` routing to `oswaldxdd/mu300-linux` applies only to the current
+  source branch and follow-up `r2`. Generic online `apply`, `boot`, and kernel-changing operations remain rejected
+  because upstream release assets are not charge2-compatible. Use a matching offline charge2 package.
 - The toolkit update page is read-only for version checks and offers only rollback or cleanup of a retained prior
   system. It does not offer online apply or claim that this test package has already upgraded the device.
 - Local state-changing updater operations share a protected runtime lock. The host installer mutex covers the host
@@ -46,7 +51,8 @@ it does not replace the tree with upstream `main`.
   or charger driver replaces it.
 - No Android/Linux startup-chain synchronization, Android B-slot expansion, `ttyd`, `adb`, or VPN management-entry
   changes are included.
-- The updater refuses generic online apply; this test build does not publish or select a new online update feed.
+- The updater refuses generic online apply. This repository lookup only checks release metadata; it does not add an
+  online firmware update path.
 
 ## Validation status
 

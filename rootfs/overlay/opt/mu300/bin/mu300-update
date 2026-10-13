@@ -18,11 +18,12 @@
 # Generic release assets, including their kernel and boot image, do not match this charge2 build. The online apply,
 # boot, and kernel-changing commands are disabled; install a matching offline charge2 update package instead.
 export PATH="$PATH:/opt/mu300/bin:/opt/mu300/busybox-bin:/usr/sbin:/sbin"
-REPO=${MU300_REPO:-dikeckaan/mu300-linux}
+REPO=${MU300_REPO:-}
 DISK=${MU300_DISK:-/mnt/mu300-disk}
 CONF=/etc/mu300
 VERSION_FILE=$CONF/image-version
 SYSTEMS="ubuntu openwrt openwrt-luci"
+CHARGE2_KERNEL_RELEASE=7.2.9-u30air-charge2
 # a system's kind decides which files are its settings and how its accounts look (spec D2)
 os_kind() { case $1 in ubuntu) echo ubuntu ;; openwrt|openwrt-*) echo openwrt ;; *) return 1 ;; esac; }
 
@@ -61,7 +62,7 @@ fetch_file() {  # fetch_file URL OUT (resumes a partial OUT)
 STAGE=$DISK/.mu300-update
 fetch_verified() {
     # MU300_RELEASE_URL: another server with the same files and SHA256SUMS (a local test server), as for install.sh
-    base=${MU300_RELEASE_URL:-https://github.com/$REPO/releases/download/$1}
+    base=${MU300_RELEASE_URL:-https://github.com/$(release_repo)/releases/download/$1}
     mkdir -p "$STAGE"
     # SHA256SUMS is fetched once per run, never trusted from an earlier one: a release published again under the
     # same tag left a stale copy that every file then failed (and the updater it had verified replaced this one).
@@ -113,6 +114,17 @@ untar() {
 
 installed_version() { [ -r "$VERSION_FILE" ] && cat "$VERSION_FILE" || echo unknown; }
 this_device() { "${MU300_BIN:-/opt/mu300/bin}/mu300-device"; }
+# Only this native U30 Air kernel checks the charge2 fork. A device name alone is not enough: other U30 Air builds
+# keep the generic upstream feed. MU300_REPO remains an explicit override for tests and operators.
+charge2_native() {
+    [ "$(this_device)" = u30air ] && [ "$(uname -r 2>/dev/null)" = "$CHARGE2_KERNEL_RELEASE" ]
+}
+release_repo() {
+    if [ -n "$REPO" ]; then printf '%s\n' "$REPO"
+    elif charge2_native; then printf '%s\n' oswaldxdd/mu300-linux
+    else printf '%s\n' dikeckaan/mu300-linux
+    fi
+}
 # A new boot image must never meet a locked slot (mu300-next-boot lock): its first boots are the usual attempts, and
 # the first one that gets to mu300-boot-ok locks again. Quiet when there is nothing to do; a failure only warns.
 unlock_for_trial() {
@@ -179,7 +191,7 @@ installed_systems() {
 }
 
 latest_release() {
-    fetch_stdout "https://api.github.com/repos/$REPO/releases/latest" \
+    fetch_stdout "https://api.github.com/repos/$(release_repo)/releases/latest" \
         | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1
 }
 

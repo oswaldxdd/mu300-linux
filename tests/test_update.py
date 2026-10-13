@@ -51,6 +51,26 @@ class Update(UpdateBase):
             r = self.up(shell, 'echo loaded')
             self.assertEqual((r.returncode, r.stdout), (0, 'loaded\n'), r.stderr)
 
+    def test_release_repository_follows_charge2_kernel_and_device(self):
+        request = self.tmp / 'latest-url'
+        self.stub('curl', 'for arg do url=$arg; done; printf "%s\\n" "$url" > "$STUBLOG/latest-url"; '
+                           "echo '{\"tag_name\":\"v2026.10.15-charge2-r2\"}'")
+        cases = [
+            ('u30air', '7.2.9-u30air-charge2', '', 'oswaldxdd/mu300-linux'),
+            ('u30air', '7.2.8-u30air-native14', '', 'dikeckaan/mu300-linux'),
+            ('f50', '7.2.9-u30air-charge2', '', 'dikeckaan/mu300-linux'),
+            ('u30air', '7.2.9-u30air-charge2', 'example/override', 'example/override'),
+        ]
+        for shell in self.each_shell():
+            for device, kernel, override, repo in cases:
+                self.device(device)
+                self.stub('uname', f'[ "$1" = -r ] && {{ echo "{kernel}"; exit 0; }}; exit 1')
+                r = self.up(shell, 'latest_release', MU300_REPO=override)
+                self.assertEqual(r.returncode, 0, r.stderr)
+                self.assertEqual(r.stdout.strip(), 'v2026.10.15-charge2-r2')
+                self.assertEqual(request.read_text().strip(),
+                                 f'https://api.github.com/repos/{repo}/releases/latest')
+
     def test_linux_slot(self):
         f = self.root / 'run/mu300/linux-slot'
         for shell in self.each_shell():
@@ -146,7 +166,10 @@ class Update(UpdateBase):
         env = dict(MU300_NOTICE=str(note), MU300_MOTD_DIR=str(motd))
         for shell in self.each_shell():
             for installed, latest, noted in (('v2026.10.06', 'v2026.10.08', True), ('v2026.10.08', 'v2026.10.08', False),
-                                             ('v2026.10.09', 'v2026.10.08', False)):   # a test release: no note
+                                             ('v2026.10.09', 'v2026.10.08', False),
+                                             ('v2026.10.15-charge2', 'v2026.10.15-charge2-r2', True),
+                                             ('v2026.10.15-charge2-r2', 'v2026.10.15-charge2-r2', False),
+                                             ('v2026.10.15-charge2-r2', 'v2026.10.15-charge2', False)):
                 r = self.up(shell, f'latest_release() {{ echo {latest}; }}; installed_version() {{ echo {installed}; }}; '
                                    'notice; echo rc=$?', **env)
                 self.assertIn('rc=0', r.stdout, r.stderr)

@@ -1,0 +1,19 @@
+# U30 Air charge2 firmware: @@MU300_CHARGE2_RELEASE_ID@@
+
+This is the formal U30 Air charge2 release for the ZTE U30 Air. It uses OpenWrt 25.12.5 and the `@@MU300_CHARGE2_KERNEL_RELEASE@@` kernel. The image includes the matching kernel modules, the charge2 runtime and LuCI pages, and the guarded native-kmod compatibility provider needed by the release's optional packages.
+
+The exact `@@MU300_CHARGE2_RELEASE_ID@@` package has not been installed or booted as a whole. The preceding test candidate was checked on a device; this release adds the in-image native capability provider, traffic shutdown link and updater check routing. Treat the release as a new firmware package and keep a complete device backup before installing it.
+
+## Download and verify
+
+Download all release parts and the reassembly files from the GitHub release. Run `Join-Charge2-Firmware.ps1` from PowerShell to reassemble the ZIP, then verify the reported SHA-256 against the release's `.sha256` asset. The extracted package has its own `PACKAGE-FILES.sha256`; the required firmware files are checked against `release/SHA256SUMS` by the offline installer.
+
+## Install
+
+Extract the complete reassembled ZIP, connect the rooted U30 Air in Android with USB debugging enabled, and run `install-u30air-host.ps1` from PowerShell 7 (`pwsh.exe`). Use `-VerifyOnly` first to validate the offline firmware files without accessing the device. Read the installer's target, update choice and write summary before accepting its final `INSTALL` prompt. The wrapper serializes invocations through this offline wrapper on the host; running `source/install.ps1` directly or using another package is outside that lock.
+
+The firmware is for the U30 Air only. It preserves the Android boot default and updates the Linux system through the matching offline package. It does not authorize erasing Android data or changing the partition table.
+
+## Validation boundary
+
+The builder verifies source cleanliness, pinned asset hashes, the complete kernel-input reuse comparison, 379 AArch64 modules and their kernel release, rootfs package registration and dependency solving, boot/shutdown service links, and release checksums. It does not claim the complete r2 package was flashed or booted. Full-device behavior after installing this exact package remains to be confirmed.
