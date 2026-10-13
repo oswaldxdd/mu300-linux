@@ -6,7 +6,7 @@
 - 保留 Type-C/PD 输入识别、外部供电下手动 Host、关闭 OTG boost、RTL8153 网卡与 WiFi 永久 MAC 修复。
 - 默认源码位于根目录 `upstream/`、`openwrt/`、`rootfs/` 等目录；`experimental/u30air-charge2/source/` 保留为发布时的冻结快照。
 
-构建及打包入口见 **[BUILD-CHARGE2.md](BUILD-CHARGE2.md)**。正式 release 可用后，从 [charge2 r2 发布页](https://github.com/oswaldxdd/mu300-linux/releases/tag/v2026.10.15-charge2-r2) 下载全部资产，运行 `Join-Charge2-Firmware.ps1` 重组 ZIP 后使用包内 `install-u30air-host.ps1`。根目录通用安装说明和 `install.ps1` 不会自行选择 charge2。内核包默认只列 `u30air`。
+构建及打包入口见 **[BUILD-CHARGE2.md](BUILD-CHARGE2.md)**。正式 release 可用后，从 [charge2 r2 发布页](https://github.com/oswaldxdd/mu300-linux/releases/tag/v2026.10.15-charge2-r2) 下载完整固件 `U30 Air Openwrt -r2.zip`，解压后使用包内 `install-u30air-host.ps1`。不需要下载分片或重组脚本。根目录通用安装说明和 `install.ps1` 不会自行选择 charge2。内核包默认只列 `u30air`。
 
 原 `v2026.10.15-charge2` 发布标签和文件保持不变。r2 使用新标签并明确标记内核复用和完整包硬件验证边界。0.1% 是显示分辨率；完整容量学习周期及全区间 SOC 精度仍以既有发布说明的验证边界为准。
 

@@ -6,11 +6,11 @@ The exact `@@MU300_CHARGE2_RELEASE_ID@@` package has not been installed or boote
 
 ## Download and verify
 
-Download all release parts and the reassembly files from the GitHub release. Run `Join-Charge2-Firmware.ps1` from PowerShell to reassemble the ZIP, then verify the reported SHA-256 against the release's `.sha256` asset. The extracted package has its own `PACKAGE-FILES.sha256`; the required firmware files are checked against `release/SHA256SUMS` by the offline installer.
+Download the single complete `U30 Air Openwrt -r2.zip` firmware asset from the GitHub release and extract it. No split parts or reassembly step are required. The package has its own `PACKAGE-FILES.sha256`; the offline installer checks the required firmware files against `release/SHA256SUMS`.
 
 ## Install
 
-Extract the complete reassembled ZIP, connect the rooted U30 Air in Android with USB debugging enabled, and run `install-u30air-host.ps1` from PowerShell 7 (`pwsh.exe`). Use `-VerifyOnly` first to validate the offline firmware files without accessing the device. Read the installer's target, update choice and write summary before accepting its final `INSTALL` prompt. The wrapper serializes invocations through this offline wrapper on the host; running `source/install.ps1` directly or using another package is outside that lock.
+Connect the rooted U30 Air in Android with USB debugging enabled, then run `install-u30air-host.ps1` from PowerShell 7 (`pwsh.exe`) in the extracted package. Use `-VerifyOnly` first to validate the offline firmware files without accessing the device. Read the installer's target, update choice and write summary before accepting its final `INSTALL` prompt. The wrapper serializes invocations through this offline wrapper on the host; running `source/install.ps1` directly or using another package is outside that lock.
 
 The firmware is for the U30 Air only. It preserves the Android boot default and updates the Linux system through the matching offline package. It does not authorize erasing Android data or changing the partition table.
 

@@ -17,4 +17,4 @@ The exact r2 package has not been installed or booted as a whole. Earlier test-c
 
 ## Install
 
-Download all split assets, reassemble the complete ZIP with `Join-Charge2-Firmware.ps1`, and compare the result with the published SHA-256 file. Extract the ZIP and run `install-u30air-host.ps1`; `-VerifyOnly` checks package assets without accessing the device. The package targets the rooted ZTE U30 Air and keeps Android as the default boot system.
+Download the single complete `U30 Air Openwrt -r2.zip` firmware asset from the GitHub release and extract it; no split parts or reassembly script are needed. Run `install-u30air-host.ps1`, then use `-VerifyOnly` to check package assets without accessing the device. The package targets the rooted ZTE U30 Air and keeps Android as the default boot system.

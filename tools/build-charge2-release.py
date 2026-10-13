@@ -23,6 +23,7 @@ import tempfile
 
 
 RELEASE_ID = "v2026.10.15-charge2-r2"
+ZIP_NAME = "U30 Air Openwrt -r2.zip"
 RELEASE_CHANNEL = "stable"
 KREL = "7.2.9-u30air-charge2"
 MODULE_COUNT = 379
@@ -565,7 +566,7 @@ def main() -> None:
             except (NotImplementedError, OSError):
                 pass
         os.utime(package, (source_epoch, source_epoch))
-        zip_path = args.out.parent / f"{RELEASE_ID}.zip"
+        zip_path = args.out.parent / ZIP_NAME
         if zip_path.exists():
             raise RuntimeError(f"zip output already exists: {zip_path}")
         package.rename(args.out)
