@@ -125,9 +125,12 @@ def main() -> None:
         for path, key in ((wpad, "wpad_apk_sha256"), (common, "hostapd_common_apk_sha256")):
             if not path.is_file() or sha256(path) != inputs[key]:
                 raise RuntimeError(f"built package does not match reviewed hash: {path.name}")
+        # .pkgdir retains debug information. The pinned SDK package recipe
+        # applies sstrip -z to its APK payload; the rootfs assembler checks
+        # that installed payload separately against inputs["wpad_sha256"].
         build_tree = sdk / "build_dir"
         matching_binaries = [p for p in build_tree.rglob("wpad")
-                             if p.is_file() and sha256(p) == inputs["wpad_sha256"]]
+                             if p.is_file() and sha256(p) == inputs["wpad_sdk_binary_sha256"]]
         if not matching_binaries:
             raise RuntimeError("clean SDK build did not produce the reviewed wpad binary")
         shutil.copy2(wpad, output / wpad_name)
@@ -146,7 +149,7 @@ def main() -> None:
             "patched_wpad_init_sha256": hashlib.sha256(patched_init).hexdigest(),
             "hostapd_patch_sha256": sha256(PATCH),
             "original_hostapd_patch_count": len(declared),
-            "wpad_binary_sha256": inputs["wpad_sha256"],
+            "wpad_binary_sha256": inputs["wpad_sdk_binary_sha256"],
             "wpad_apk": {"name": wpad_name, "sha256": sha256(wpad)},
             "hostapd_common_apk": {"name": common_name, "sha256": sha256(common)},
             "sdk_build_log_sha256": sha256(log_path),
@@ -155,7 +158,7 @@ def main() -> None:
             json.dumps(provenance, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         print(f"wpad APK: {output / wpad_name}")
         print(f"hostapd-common APK: {output / common_name}")
-        print(f"wpad binary SHA-256: {inputs['wpad_sha256']}")
+        print(f"SDK debug wpad binary SHA-256: {inputs['wpad_sdk_binary_sha256']}")
         print(f"build evidence: {output}")
     finally:
         recipe_path.write_bytes(original_makefile)

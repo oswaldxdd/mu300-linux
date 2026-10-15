@@ -379,7 +379,7 @@ def main() -> None:
             "base_hostapd_recipe_sha256": wifi_inputs["sdk_recipe_sha256"],
             "base_wpad_init_sha256": wifi_inputs["sdk_init_sha256"],
             "hostapd_patch_sha256": wifi_inputs["sae_result_patch_sha256"],
-            "wpad_binary_sha256": wifi_inputs["wpad_sha256"],
+            "wpad_binary_sha256": wifi_inputs["wpad_sdk_binary_sha256"],
         }
         if any(wifi_evidence.get(key) != value for key, value in expected_wifi_evidence.items()):
             raise RuntimeError("Wi-Fi SDK provenance differs from the reviewed input pins")
@@ -502,6 +502,7 @@ def main() -> None:
                 "hostapd_common_package_version": wifi_inputs["hostapd_common_package_version"],
                 "hostapd_common_apk_sha256": wifi_inputs["hostapd_common_apk_sha256"],
                 "wpad_binary_sha256": wifi_inputs["wpad_sha256"],
+                "sdk_debug_wpad_binary_sha256": wifi_inputs["wpad_sdk_binary_sha256"],
                 "wpad_init_sha256": wifi_inputs["wpad_init_sha256"],
                 "ap_generator_sha256": wifi_inputs["ap_uc_sha256"],
                 "driver_module_sha256": wifi_inputs["driver_sha256"],
