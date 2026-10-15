@@ -60,7 +60,8 @@ class OfflineWrapperReleaseIdentityTests(unittest.TestCase):
             wrapper = package / "install-u30air-host.ps1"
             wrapper.write_text(wrapper_text, encoding="utf-8-sig", newline="\r\n")
             return subprocess.run(
-                [self.pwsh, "-NoProfile", "-File", str(wrapper), "-VerifyOnly"],
+                [self.pwsh, "-NoProfile", "-ExecutionPolicy", "Bypass",
+                 "-File", str(wrapper), "-VerifyOnly"],
                 capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30,
             )
 
@@ -114,7 +115,8 @@ class OfflineWrapperReleaseIdentityTests(unittest.TestCase):
                 with (release / "mu300-kernel-7.2.tar.gz").open("ab") as stream:
                     stream.write(b"tampered")
             return subprocess.run(
-                [self.pwsh, "-NoProfile", "-File", str(TOP / "install.ps1"),
+                [self.pwsh, "-NoProfile", "-ExecutionPolicy", "Bypass",
+                 "-File", str(TOP / "install.ps1"),
                  "-U30AirHostPackage", "-NoSelfUpdate", "-VerifyOnly", "-Lang", "en",
                  "-ReleaseDirectory", str(release)],
                 capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30,

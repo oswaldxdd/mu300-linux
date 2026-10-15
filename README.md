@@ -1,14 +1,15 @@
 # U30 Air OpenWrt charge2
 
-此 `u30air` 分支根目录的正式发布目标为 **v2026.10.15-charge2-r2**：OpenWrt 25.12.5 + Linux **7.2.9-u30air-charge2**，仅用于 ZTE U30 Air。它以用户确认稳定运行的 `v2026.10.15-charge2` 为基线；r2 完整包与基础测试候选的验证状态见其独立 manifest，不将构建或 package audit 当作设备启动验证。
+此 `u30air` 分支根目录的默认正式发布目标为 **v2026.10.15-charge2-r3**：OpenWrt 25.12.5 + Linux **7.2.9-u30air-charge2**，仅用于 ZTE U30 Air。r3 在 charge2 基础上加入 WPA2-PSK/WPA3-SAE 混合模式兼容修复；完整 ZIP 的构建和设备验证状态以其独立 manifest 为准。
 
 - 保留原生 SGM41511 充电与 JEITA 保护、内核执行的 0–100% 充电上限、SOC 一位小数显示、受条件约束的 FCC 学习。
 - 保留 Type-C/PD 输入识别、外部供电下手动 Host、关闭 OTG boost、RTL8153 网卡与 WiFi 永久 MAC 修复。
+- 无线驱动、AP 配置生成器与 hostapd 服务配置使用真机测试哈希；r3 `wpad` 含额外 SAE 专用 PWE 修正，完整 r3 固件尚未整体刷入验证。
 - 默认源码位于根目录 `upstream/`、`openwrt/`、`rootfs/` 等目录；`experimental/u30air-charge2/source/` 保留为发布时的冻结快照。
 
-构建及打包入口见 **[BUILD-CHARGE2.md](BUILD-CHARGE2.md)**。正式 release 可用后，从 [charge2 r2 发布页](https://github.com/oswaldxdd/mu300-linux/releases/tag/v2026.10.15-charge2-r2) 下载完整固件 `U30 Air Openwrt -r2.zip`，解压后使用包内 `install-u30air-host.ps1`。不需要下载分片或重组脚本。根目录通用安装说明和 `install.ps1` 不会自行选择 charge2。内核包默认只列 `u30air`。
+构建入口见 **[BUILD-CHARGE2.md](BUILD-CHARGE2.md)**。正式 release 可用后，从 [charge2 r3 发布页](https://github.com/oswaldxdd/mu300-linux/releases/tag/v2026.10.15-charge2-r3) 下载唯一完整固件 `U30-Air-Openwrt-r3.zip`，解压后使用包内 `install-u30air-host.ps1`。无需下载分片或运行重组脚本。根目录通用安装说明和 `install.ps1` 不会自行选择 charge2。内核包默认只列 `u30air`。
 
-原 `v2026.10.15-charge2` 发布标签和文件保持不变。r2 使用新标签并明确标记内核复用和完整包硬件验证边界。0.1% 是显示分辨率；完整容量学习周期及全区间 SOC 精度仍以既有发布说明的验证边界为准。
+原 `v2026.10.15-charge2` 与 r2 发布资产保留不变。新发布使用 r3 标签，并明确区分组件级真机证据和完整 ZIP 的设备验证状态。
 
 ---
 

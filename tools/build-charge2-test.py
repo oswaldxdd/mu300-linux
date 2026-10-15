@@ -386,6 +386,55 @@ NATIVE_KMOD_PROVIDES = (
 )
 
 
+def install_wifi_apks(root: Path, wifi_apks: list[Path],
+                      expected_versions: dict[str, str]) -> None:
+    """Upgrade only explicitly pinned Wi-Fi APKs and verify the resulting APK DB."""
+    if len(wifi_apks) != 2 or set(expected_versions) != {
+        "wpad-basic-mbedtls", "hostapd-common"
+    }:
+        raise RuntimeError("Wi-Fi upgrade requires the pinned wpad and hostapd-common APK pair")
+    repo = root / "tmp/mu300-wifi-localrepo"
+    shutil.rmtree(repo, ignore_errors=True)
+    repo.mkdir(parents=True, exist_ok=True)
+    staged = []
+    for apk_file in wifi_apks:
+        if not apk_file.is_file():
+            raise RuntimeError(f"pinned Wi-Fi APK is missing: {apk_file}")
+        target = repo / apk_file.name
+        shutil.copy2(apk_file, target)
+        staged.append(target)
+    env = os.environ.copy()
+    env.update({"IPKG_NO_SCRIPT": "1", "LC_ALL": "C"})
+    apk_call(root, ["--allow-untrusted", "--scripts=no", "--no-network", "add", "--upgrade",
+                    *[str(path) for path in staged]], env)
+
+    installed_db = root / "lib/apk/db/installed"
+    if not installed_db.is_file():
+        raise RuntimeError("APK installed database is missing after the Wi-Fi update")
+    records = installed_db.read_text(encoding="utf-8", errors="replace").split("\n\n")
+    for package in expected_versions:
+        matches = [record for record in records if f"\nP:{package}\n" in f"\n{record}\n"]
+        if len(matches) != 1:
+            raise RuntimeError(f"APK database must have exactly one {package} record")
+        values = set(matches[0].splitlines())
+        versions = [line[2:] for line in values if line.startswith("V:")]
+        if len(versions) != 1 or versions[0] != expected_versions[package]:
+            raise RuntimeError(
+                f"installed {package} version is {versions!r}, expected {expected_versions[package]}"
+            )
+    for package in expected_versions:
+        installed = subprocess.check_output(
+            [shutil.which("qemu-aarch64-static"), "-L", str(root), str(root / "usr/bin/apk"),
+             "--root", str(root), "info", "-e", package],
+            env=env, text=True,
+        ).strip()
+        if installed != package:
+            raise RuntimeError(f"APK solver does not report {package} installed: {installed!r}")
+    if not (root / "usr/sbin/wpad").is_file():
+        raise RuntimeError("Wi-Fi package did not install /usr/sbin/wpad")
+    shutil.rmtree(repo, ignore_errors=True)
+
+
 def install_native_provider_apk(root: Path, apk_file: Path) -> None:
     """Register the firmware-local, unsigned provider without executing package scripts."""
     env = os.environ.copy()
@@ -439,7 +488,9 @@ def patch_if_needed(root: Path, source: Path, rel: str, marker: str) -> None:
 
 def make_rootfs(source: Path, rootfs_base: Path, kernel: Path, modules: list[Path],
                 apk_index: Path, apk_file: Path, stage: Path,
-                native_provider_apk: Path | None = None) -> tuple[Path, list[str]]:
+                native_provider_apk: Path | None = None,
+                wifi_apks: list[Path] | None = None,
+                wifi_expected_versions: dict[str, str] | None = None) -> tuple[Path, list[str]]:
     root = stage / "rootfs"
     root.mkdir()
     run(["tar", "-xzf", str(rootfs_base), "-C", str(root)])
@@ -457,6 +508,18 @@ def make_rootfs(source: Path, rootfs_base: Path, kernel: Path, modules: list[Pat
         ("usr/share/ucode/wifi/hostapd.uc", "device_no_dfs(config);"),
     ):
         patch_if_needed(root, source, rel, marker)
+
+    ap_generator = root / "usr/share/ucode/wifi/ap.uc"
+    ap_patch = source / "openwrt/sae-offload/ap-uc-sae-compat.patch"
+    if wifi_apks is not None:
+        wifi_inputs = json.loads((source / "openwrt/sae-offload/inputs.json").read_text(encoding="utf-8"))
+        if not ap_generator.is_file():
+            raise RuntimeError("pinned OpenWrt rootfs is missing usr/share/ucode/wifi/ap.uc")
+        original_sha = sha256(ap_generator)
+        if original_sha != wifi_inputs["ap_uc_original_sha256"]:
+            raise RuntimeError(f"unreviewed OpenWrt AP generator: {original_sha}")
+        if not ap_patch.is_file() or sha256(ap_patch) != wifi_inputs["ap_uc_patch_sha256"]:
+            raise RuntimeError("SAE AP generator patch differs from its reviewed source pin")
 
     lmo_dir = root / "usr/lib/lua/luci/i18n"
     lmo_dir.mkdir(parents=True, exist_ok=True)
@@ -487,6 +550,16 @@ def make_rootfs(source: Path, rootfs_base: Path, kernel: Path, modules: list[Pat
     install_socket_apk(root, apk_index, apk_file, stage)
     if native_provider_apk is not None:
         install_native_provider_apk(root, native_provider_apk)
+    if wifi_apks is not None:
+        if not wifi_expected_versions:
+            raise RuntimeError("Wi-Fi APK update requires exact installed package versions")
+        install_wifi_apks(root, wifi_apks, wifi_expected_versions)
+        wifi_inputs = json.loads((source / "openwrt/sae-offload/inputs.json").read_text(encoding="utf-8"))
+        if sha256(ap_generator) != wifi_inputs["ap_uc_original_sha256"]:
+            raise RuntimeError("r6 Wi-Fi APK unexpectedly changed the pinned AP generator")
+        run(["patch", "--batch", "--fuzz=0", "-d", str(root), "-p1", "-i", str(ap_patch)])
+        if sha256(ap_generator) != wifi_inputs["ap_uc_sha256"]:
+            raise RuntimeError("SAE AP generator patch result hash mismatch")
     (root / "etc/mu300").mkdir(parents=True, exist_ok=True)
     (root / "etc/mu300/image-version").write_text(RELEASE_ID + "\n", encoding="ascii")
 

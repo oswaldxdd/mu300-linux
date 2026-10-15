@@ -21,30 +21,15 @@ docker run --platform linux/arm64 --rm -v mu300-charge2-kernel:/src -v "$PWD/ups
 sh upstream/make-bundle.sh /tmp/mu300-kernel-charge2.tar.gz /path/to/base/mu300-kernel.tar.gz
 ```
 
-## 正式完整固件包
+## 默认正式完整固件包（r3）
 
-`tools/build-charge2-release.py` 是当前唯一正式 r2 完整包入口。它只接受干净、已提交的最终源码及固定 SHA 输入。内核 bundle 复用之前审核通过的 7.2.9 构建；构建器会比对原构建证明中的每个 `upstream/` 文件和最终提交，验证配置、工具链、构建日志、379 个模块和 vermagic。只要任何内核输入不同，构建就会停止；它不会把旧内核说成从新提交重编译。
+当前默认发布目标为 `v2026.10.15-charge2-r3`。请用 `tools/build-charge2-release-r3.py` 构建完整 ZIP；`tools/build-charge2-release.py` 保留原 r2 的严格基线验证，只能装配与旧 upstream 内核输入字节一致的版本，不能绕过 r3 的 Wi-Fi 模块重建检查。
 
-Linux/WSL 需 Python 3.12+、GNU `tar`/`gzip`/`patch`、`qemu-aarch64-static`，以及官方 OpenWrt rootfs、回滚 kernel bundle、签名 `packages.adb`、`ucode-mod-socket` APK、审核后的 candidate kernel 和其原始 build evidence：
+r3 构建分三步：`tools/build-charge2-sae-offload-wifi.py` 从固定 OpenWrt SDK 与 base feed commit 构建并验证 r6 hostapd APK；`tools/build-charge2-sae-offload-kernel.py` 使用已审核内核编译树新建 `sprd_wlan_combo.ko`，只替换基础 kernel bundle 中该模块；最后 `tools/build-charge2-release-r3.py` 更新 rootfs APK 数据库、核验 AP ucode、装配单一完整 ZIP。内核 `Image`、generic ramdisk 与另外 378 个模块字节复用自审核基础 bundle，构建器不称它们为新编译产物。
 
-```sh
-python3 tools/build-charge2-release.py \
-  --repo . --source-commit <final-40-character-commit> \
-  --official-rootfs /path/to/mu300-openwrt-luci-rootfs.tar.gz \
-  --rollback-kernel /path/to/mu300-kernel.tar.gz \
-  --kernel /path/to/audited-mu300-kernel-7.2.tar.gz \
-  --apk-index /path/to/packages.adb \
-  --apk /path/to/ucode-mod-socket-2026.01.16~85922056-r2.apk \
-  --kernel-provenance /path/to/original-kernel-evidence/BUILD-PROVENANCE.json \
-  --kernel-evidence /path/to/original-kernel-evidence \
-  --out /path/to/new/v2026.10.15-charge2-r2
-```
+具体 SDK/feed、module build、package build 命令与固定输入见 **[R3 完整构建说明](docs/BUILD-CHARGE2-RELEASE-R3.md)**。构建要求 clean committed source，最终 ZIP 的 `source_commit` 必须对应实际公开源码提交。单元测试、SDK/build audit 与 `-VerifyOnly` 都不等于完整固件已在 U30 Air 刷写或启动；manifest 保持对应硬件字段为 false，直到对精确 ZIP 完成设备验证。
 
-正式 image 会注册本项目的 `mu300-native-kmod-compat` provider，用 APK solver 校验四项精确版本化内核能力，并创建 FCC `S20` 和 traffic `K10` 链接。provider 只含说明/能力清单和设备端 fail-closed guard，不包含 `.ko`。完整包带 clean source snapshot、kernel reuse provenance、输入资产、manifest、SHA 清单和离线安装包装器；具体 SHA 以构建产物为准。正式包构建成功不代表该精确 ZIP 已刷入设备。
-
-根目录 `build-full-release.py` 是历史固定资产入口，会拒绝当前源码，防止把新运行时与旧内核静默拼包。它不能构建 r2。`tools/build-charge2-test.py` 是独立测试候选入口，继续使用 test ID，不作为正式发布方式。
-
-`experimental/u30air-charge2/source/` 保留旧发布的冻结快照，原包和发布说明不在本次改写范围内。
+旧 r2 与当前 r3 构建边界分别记录在各自文档中。根目录 `build-full-release.py` 和 `tools/make-release.sh` 是历史/通用发布入口，不装配 charge2 r3 固件。`tools/build-charge2-test.py` 仍是测试候选入口，不作为正式发布方式。
 
 ## charge2 测试候选
 

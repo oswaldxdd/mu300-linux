@@ -2,6 +2,7 @@
 
 ```sh
 python3 -m unittest discover -s tests            # everything this machine can run
+python3 tests/sae-offload/run-fixtures.py          # hostapd SAE patch C fixtures and negative control
 MU300_TEST_SHELLS="busybox sh" python3 -m unittest discover -s tests   # one shell only
 powershell -File tests\installer.Tests.ps1        # Windows: install.ps1's functions
 ```
@@ -41,6 +42,8 @@ macOS and Windows (`.github/workflows/tests.yml`).
 | `test_sms_pool.py` | the SMS pool (K69, D11): `mu300-sms` and `mu300-smsd` keep the SIM's and the panel's messages in `/etc/mu300/sms-pool`, through a stub `mu300-at`; the panel side runs on the real `mu300-sms` |
 | `test_usb_management.py` | the panel's USB management (`device-usb`, K7, K8, D12): role switch, host mode, NIC reattachment, the USB network mode file `boot/init` applies on the next boot |
 | `test_wifi.py` | `wifi-start` loads the WCN modules without `modules.dep` (K55); `mu300-hw` restarts the AP once the country is live (K15) |
+| `test_charge2_r3_kernel_guard.py` | synthetic archive checks prove the r3 kernel guard accepts only the Wi-Fi module change and rejects changed Image bytes, archive metadata, or member lists |
+| `test_sae_offload_fixtures.py` | compiles the exact SAE hostapd patch fixtures with `-Wall -Wextra -Werror` and AddressSanitizer/UBSan; checks parser boundaries and association states, and requires the old unconditional PWE guard negative control to fail |
 | `test_wifi_channels.py` | the SC2355's country-aware 5 GHz channel lists, DFS fallbacks, and channel-width limits |
 | `test_early_replay_hook.py` | the early hook that replays the LuCI plugin's saved locks before the radio comes on (K65): its place in `mobile-data` |
 | `test_unisoc_plugin.py` | the plugin's portable adapter boundary (K81): the custom AT backend contract, `--available` sends nothing, `boot-replay` (zero AT traffic when disabled, late replay, the early window), `lock replay early` restores every saved lock without `SFUN` |
